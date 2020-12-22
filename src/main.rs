@@ -135,7 +135,8 @@ impl TurtleApiCall {
 #[derive(Debug)]
 enum TurtleAction {
     Turn {direction: RelativeDirection},
-    Move {direction: RelativeDirection}
+    Move {direction: RelativeDirection},
+    Stop
 }
 
 
@@ -154,7 +155,8 @@ impl TurtleAction {
             TurtleAction::Move {direction} => {
 
                 TurtleApiCall::new("")
-            }
+            },
+            TurtleAction::Stop =>  TurtleApiCall::new("stop")
 
         }
     }
@@ -272,37 +274,36 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
     // let msg_value: serde_json::Value = serde_json::from_str(msg)?;
     let msg_wtype: UnknownMsg = serde_json::from_str(msg)?;
 
-    let state =  turtle.program_state();
-    match state {
-        ProgramState::Finished => {
-            match msg_wtype.msgtype.as_str() {
-                "start" => {
-                    let create_program_msg: StartProgramMsg = serde_json::from_str(msg)?;
-                    let program = create_program(&create_program_msg)?;
-                    turtle.set_program(program);
-                    let action = turtle.program.next()?;
-                    let action_str = serde_json::to_string(&action.to_api_call())?;
-                    return Ok(action_str);
-                },
-                x => return Err(anyhow!("Invalid msgtype received when program is finished: {}", x))
-            }
-            // let program = create_program(&msg_value)?;
-            
+    
+
+    match msg_wtype.msgtype.as_str() {
+        "start" => {
+            let create_program_msg: StartProgramMsg = serde_json::from_str(msg)?;
+            let program = create_program(&create_program_msg)?;
+            turtle.set_program(program);
+            let action = turtle.program.next()?;
+            let action_str = serde_json::to_string(&action.to_api_call())?;
+            Ok(action_str)
         },
-        ProgramState::HasInstructions(_) => {
-            match msg_wtype.msgtype.as_str() {
-                "response" => {
-                    let resp_msg: TurtleResponseMsg = serde_json::from_str(&msg)?;
-                    turtle.program.update(&resp_msg);
-                    let action = turtle.program.next()?;
-                    let action_str = serde_json::to_string(&action.to_api_call())?;
-                    return Ok(action_str);
-                },
-                _ => panic!("Unknown msgtype")
-            }
-        }
-        _ => todo!() // waiting
+        "response" => {
+            let resp_msg: TurtleResponseMsg = serde_json::from_str(&msg)?;
+            turtle.program.update(&resp_msg);
+            
+            let action = match turtle.program_state() {
+                ProgramState::HasInstructions(_) => turtle.program.next()?,
+                ProgramState::Finished => TurtleAction::Stop,
+                _ => panic!()
+            };
+            let action_str = serde_json::to_string(&action.to_api_call())?;
+            Ok(action_str)
+
+        },
+        x => Err(anyhow!("Invalid msgtype received when program is finished: {}", x))
     }
+    // let program = create_program(&msg_value)?;
+    
+
+
     // let command: String = msg_value["command"].to_string();
     
     // match command {
@@ -354,7 +355,7 @@ fn main() {
             Ok(stream) => {
                 if let Err(err) = handle_client(stream) {
                     match err {
-                        e => println!("test: {}", e),
+                        e => println!("Client error: {}", e),
                     }
                 }
             }
