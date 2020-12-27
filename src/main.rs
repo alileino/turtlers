@@ -7,6 +7,11 @@ use tungstenite::WebSocket;
 use anyhow::{anyhow, Result, Error};
 use serde_json;
 use serde_derive::{Deserialize, Serialize};
+pub mod turtle_action;
+pub mod turtle_state;
+pub mod vec3;
+use turtle_action::*;
+use turtle_state::*;
 
 use std::{
     net::{TcpListener, TcpStream},
@@ -53,19 +58,6 @@ trait TurtleProgram {
     fn update(&mut self, msg: &TurtleResponseMsg);
 }
 
-trait TurtleActionSerializable {
-    fn to_api_call(&self) -> serde_json::Value;
-}
-
-#[derive(Debug)]
-pub enum RelativeDirection {
-    Forward,
-    Backward,
-    Right,
-    Left,
-    Down,
-    Up
-}
 
 // #[derive(Debug)]
 // enum TurtleAction {
@@ -108,59 +100,11 @@ impl TurtleProgram for RotateProgram {
         Ok(TurtleAction::Turn{direction: RelativeDirection::Left})
     }
 
-    fn update(&mut self, msg: &TurtleResponseMsg)  {
+    fn update(&mut self, _msg: &TurtleResponseMsg)  {
         self.steps_remaining -= 1;
     }
 }
 
-/*
-1. Generate as many actions as can be generated
-2. Send actions
-3. Notify how many were processed, which generates more actions
-
-
-Actions could be enum variants. They can be converted to turtle calls, and they can have structure-like prperties
-*/
-#[derive(Serialize, Deserialize)]
-struct TurtleApiCall {
-    cmd: String
-}
-
-impl TurtleApiCall {
-    fn new(cmd: &str) -> Self {
-        TurtleApiCall{cmd: cmd.to_string()}
-    }
-}
-
-#[derive(Debug)]
-enum TurtleAction {
-    Turn {direction: RelativeDirection},
-    Move {direction: RelativeDirection},
-    Stop
-}
-
-
-impl TurtleAction {
-    fn to_api_call(&self) -> TurtleApiCall {
-        
-        match self {
-            TurtleAction::Turn {direction} => {
-            let call = match direction {
-                    RelativeDirection::Right => "turtle.turnRight",
-                    RelativeDirection::Left => "turtle.turnLeft",
-                    x => panic!(format!("Unsupported api call {:?}", x))
-                };
-                TurtleApiCall::new(call)
-            },
-            TurtleAction::Move {direction} => {
-
-                TurtleApiCall::new("")
-            },
-            TurtleAction::Stop =>  TurtleApiCall::new("stop")
-
-        }
-    }
-}
 
 struct NoProgram {}
 impl TurtleProgram for NoProgram {
@@ -175,11 +119,11 @@ impl TurtleProgram for NoProgram {
 
     fn name(&self) -> &str {"noprogram"}
 
-    fn next(&mut self) -> Result<(TurtleAction)> {
+    fn next(&mut self) -> Result<TurtleAction> {
         Err(anyhow!("Can't initialize NoProgram"))
     }
 
-    fn update(&mut self, msg: &TurtleResponseMsg) {
+    fn update(&mut self, _msg: &TurtleResponseMsg) {
         todo!()
     }
 }
@@ -192,7 +136,7 @@ pub struct Turtle {
 
 enum ProgramState {
     Finished,
-    Waiting(f64), // waiting for turtle to report back
+    _Waiting(f64), // waiting for turtle to report back
     HasInstructions(f64) // has instructions that can be delivered to turtle
 }
 
@@ -373,6 +317,6 @@ mod test {
    
     #[test]
     fn ensure_time_within_tolerance()  {
-
+        
     }
 }
