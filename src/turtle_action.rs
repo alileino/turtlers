@@ -13,7 +13,7 @@ trait TurtleActionSerializable {
     fn to_api_call(&self) -> serde_json::Value;
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RelativeDirection {
     Forward,
     Backward,
@@ -39,7 +39,7 @@ impl TurtleApiCall {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TurtleAction {
     Turn {direction: RelativeDirection},
     Move {direction: RelativeDirection},
@@ -60,6 +60,81 @@ pub enum TurtleAction {
     Stop
 }
 
+
+
+pub mod go {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Forward}}
+    pub fn backward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Backward}}
+    pub fn up() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Down}}
+}
+
+pub mod turn {
+    use super::*;
+    pub fn left() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Left}}
+    pub fn right() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Right}}
+}
+
+pub mod dig {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Down}}
+}
+
+pub mod inspect {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Down}}
+}
+
+pub mod detect {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Down}}
+}
+
+pub mod place {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Down}}    
+}
+
+pub mod compare {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Down}}    
+}
+
+pub mod attack {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Down}}    
+}
+
+pub mod suck {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Down}}    
+}
+
+pub mod drop {
+    use super::*;
+    pub fn forward() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Forward}}
+    pub fn up() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Up}}
+    pub fn down() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Down}}    
+}
+
+pub fn select(slot: u8) -> TurtleAction {
+    TurtleAction::Select{slot: slot}
+}
 
 impl TurtleAction {
     fn three_direction_call(name: &str, direction: &RelativeDirection) -> TurtleApiCall {
