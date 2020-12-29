@@ -131,14 +131,14 @@ pub struct TurtleResponseMsg {
 
 #[derive(Debug)]
 pub struct RandomProgram {
-    actions: [TurtleAction;29]
+    actions: [TurtleAction;66]
 }
 impl RandomProgram {
     pub fn new() -> Self {
         let actions = [
             turn::left(), turn::right(),
-            go::forward(), go::backward(), // go::up(), go::down(), 
-            //dig::forward(), dig::up(), dig::down(),
+            go::forward(), go::backward(),  go::up(), go::down(), 
+            dig::forward(), dig::up(), dig::down(),
             detect::forward(), detect::down(), detect::up(),
             place::forward(), place::down(), place::up(),
             drop::forward(), drop::down(), drop::up(),
@@ -146,7 +146,16 @@ impl RandomProgram {
             suck::forward(), suck::down(), suck::up(),
             inspect::forward(), inspect::down(), inspect::up(),
             compare::forward(), compare::down(), compare::up(),
-            select(1), select(2), select(3), select(4)];
+            inventory::select(1), inventory::select(2), inventory::select(3), inventory::select(4),
+            inventory::select(5), inventory::select(6), inventory::select(7), inventory::select(8),
+            inventory::select(9), inventory::select(10), inventory::select(11), inventory::select(12),
+            inventory::select(13), inventory::select(14), inventory::select(15), inventory::select(16),
+            inventory::compare_to(1), inventory::compare_to(2), inventory::compare_to(3), inventory::compare_to(16),
+            inventory::count(1), inventory::count(2), inventory::count(3), inventory::count(16),
+            inventory::detail(1), inventory::detail(2), inventory::detail(3), inventory::detail(16),
+            inventory::space(1), inventory::space(2), inventory::space(3), inventory::space(16), 
+            inventory::transfer_to(1), inventory::transfer_to(2),inventory::transfer_to(3), inventory::transfer_to(16)
+            ];
         RandomProgram{actions:actions}
     }
 }
@@ -155,8 +164,13 @@ impl RandomProgram {
 impl TurtleProgram for RandomProgram {
     fn next(&mut self) -> Result<TurtleAction> {
         let mut rng = rand::thread_rng();
+
         let action = self.actions.choose(&mut rng).unwrap();
-        Ok(action.clone())
+        match action {
+            TurtleAction::Drop{..} => self.next(),
+            _ => Ok(action.clone())
+        }
+        // Ok(action.clone())
 
     }
 

@@ -127,15 +127,18 @@ fn turtle_ok(socket: &mut WebSocket<TcpStream>) -> Result<()> {
 }
 
 pub enum FailureReason {
-    MovementObstructed,
-    NoBlockToInspect,
-    NoItemsToPlace,
-    CanNotPlaceItemHere,
-    CanNotPlaceBlockHere,
-    NothingToDigHere,
-    NothingToAttackHere,
-    NoItemsToTake,
-    NoItemsToDrop,
+    MovementObstructed, // move
+    NoBlockToInspect, // inspect
+    NoItemsToPlace, // place
+    CanNotPlaceItemHere, // place
+    CanNotPlaceBlockHere, // place
+    NothingToDigHere,   // dig
+    NothingToAttackHere, // attack
+    NoItemsToTake, // suck
+    NoItemsToDrop, // drop
+    SlotIsEmpty, // itemDetail
+    NoSpaceForItems, // transferTo
+    UnbreakableBlockDetected // dig
 }
 
 pub fn parse_failure_reason(reason: &str) -> FailureReason {
@@ -149,6 +152,8 @@ pub fn parse_failure_reason(reason: &str) -> FailureReason {
         "Nothing to attack here" => FailureReason::NothingToAttackHere,
         "No items to take" => FailureReason::NoItemsToTake,
         "No items to drop" => FailureReason::NoItemsToDrop,
+        "No space for items" => FailureReason::NoSpaceForItems,
+        "Unbreakable block detected" => FailureReason::UnbreakableBlockDetected,
         _ => panic!(format!("Unknown reason {}", reason))
     }
 }
@@ -157,7 +162,9 @@ pub enum TurtleActionReturn {
     Success,
     Failure(FailureReason),
     InspectSuccess(String, serde_json::Map<String, Value>),
-    Boolean(bool)
+    DetailSuccess(serde_json::Map<String, Value>),
+    Boolean(bool),
+    Number(u32)
 }
 
 fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<TurtleActionReturn> {
@@ -172,7 +179,8 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
                 TurtleAction::Dig{..}|
                 TurtleAction::Attack{..}|
                 TurtleAction::Suck{..}|
-                TurtleAction::Drop{..} => {
+                TurtleAction::Drop{..}|
+                TurtleAction::TransferTo{..} => {
                     let success = result["1"].as_bool().unwrap();
                     if success {
                         Ok(TurtleActionReturn::Success)
@@ -200,11 +208,24 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
                         Ok(TurtleActionReturn::Failure(reason))
                     }
                 },
+                TurtleAction::ItemDetail{..} => {
+                    let detail_result = result["1"].as_object();
+                    match detail_result {
+                        Some(x) => Ok(TurtleActionReturn::DetailSuccess(x.to_owned())),
+                        None => Ok(TurtleActionReturn::Failure(FailureReason::SlotIsEmpty))
+                    }
+                },
                 TurtleAction::Detect{..}|
                 TurtleAction::Compare{..}|
-                TurtleAction::Select{..} => {
+                TurtleAction::Select{..}|
+                TurtleAction::CompareTo{..} => {
                     let is_block = result["1"].as_bool().unwrap();
                     Ok(TurtleActionReturn::Boolean(is_block))
+                },
+                TurtleAction::ItemCount{..}|
+                TurtleAction::ItemSpace{..} => {
+                    let num = result["1"].as_u64().unwrap();
+                    Ok(TurtleActionReturn::Number(num as u32))
                 },
                 _ => panic!()
             }

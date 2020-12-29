@@ -1,5 +1,5 @@
 use serde_derive::{Deserialize, Serialize};
-
+use serde_json::Value;
 /*
 1. Generate as many actions as can be generated
 2. Send actions
@@ -27,15 +27,15 @@ pub enum RelativeDirection {
 #[derive(Serialize, Deserialize)]
 pub struct TurtleApiCall {
     cmd: String,
-    arg1: Option<String>
+    arg1: serde_json::Value
 }
 
 impl TurtleApiCall {
     fn new(cmd: &str) -> Self {
-        TurtleApiCall{cmd: cmd.to_string(), arg1: None}
+        TurtleApiCall{cmd: cmd.to_string(), arg1: Value::Null}
     }
-    fn new_wargs(cmd: &str, arg1: String) -> Self {
-        TurtleApiCall{cmd: cmd.to_string(), arg1: Some(arg1)}
+    fn new_wargs(cmd: &str, arg1: Value) -> Self {
+        TurtleApiCall{cmd: cmd.to_string(), arg1: arg1}
     }
 }
 
@@ -131,10 +131,35 @@ pub mod drop {
     pub fn up() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Up}}
     pub fn down() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Down}}    
 }
+pub mod inventory {
+    use super::*;
+    pub fn select(slot: u8) -> TurtleAction {
+        TurtleAction::Select{slot: slot}
+    }
 
-pub fn select(slot: u8) -> TurtleAction {
-    TurtleAction::Select{slot: slot}
+    pub fn count(slot: u8) -> TurtleAction {
+        TurtleAction::ItemCount{slot: slot}
+    }
+
+    pub fn space(slot: u8) -> TurtleAction {
+        TurtleAction::ItemSpace{slot: slot}
+    }
+
+    pub fn detail(slot: u8) -> TurtleAction {
+        TurtleAction::ItemDetail{slot: slot}
+    }
+
+    pub fn transfer_to(slot: u8) -> TurtleAction {
+        TurtleAction::TransferTo{slot: slot}
+    }
+
+    pub fn compare_to(slot: u8) -> TurtleAction {
+        TurtleAction::CompareTo{slot: slot}
+    }
 }
+
+
+
 
 impl TurtleAction {
     fn three_direction_call(name: &str, direction: &RelativeDirection) -> TurtleApiCall {
@@ -148,7 +173,7 @@ impl TurtleAction {
     }
     fn slot_call(name: &str, slot: &u8) -> TurtleApiCall {
         match slot {
-            1..=16 => TurtleApiCall::new_wargs(format!("turtle.{}", name).as_str(), slot.to_string()),
+            1..=16 => TurtleApiCall::new_wargs(format!("turtle.{}", name).as_str(), Value::from(*slot)),
             _ => panic!(format!("Slot index out of range: {}, should be [1, 16]", slot))
         }
     }
