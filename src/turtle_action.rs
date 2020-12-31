@@ -1,5 +1,7 @@
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
+
+use crate::{Turtle, vec3::Vec3};
 /*
 1. Generate as many actions as can be generated
 2. Send actions
@@ -27,15 +29,17 @@ pub enum RelativeDirection {
 #[derive(Serialize, Deserialize)]
 pub struct TurtleApiCall {
     cmd: String,
-    arg1: serde_json::Value
+    arg1: serde_json::Value,
+    arg2: serde_json::Value
 }
 
 impl TurtleApiCall {
     fn new(cmd: &str) -> Self {
-        TurtleApiCall{cmd: cmd.to_string(), arg1: Value::Null}
+        TurtleApiCall{cmd: cmd.to_string(), arg1: Value::Null, arg2: Value::Null}
     }
-    fn new_wargs(cmd: &str, arg1: Value) -> Self {
-        TurtleApiCall{cmd: cmd.to_string(), arg1: arg1}
+
+    fn new_wargs(cmd: &str, arg1: Value, arg2: Value) -> Self {
+        TurtleApiCall{cmd: cmd.to_string(), arg1: arg1, arg2: arg2}
     }
 }
 
@@ -57,6 +61,7 @@ pub enum TurtleAction {
     ItemDetail {slot: u8}, // this also has a second parameter, "detailed", which supposedly is slower.
     TransferTo {slot: u8},
     CompareTo {slot: u8},
+    GpsLocate {timeout: f64, debug: bool},
     Stop
 }
 
@@ -158,6 +163,12 @@ pub mod inventory {
     }
 }
 
+pub mod gps {
+    use super::*;
+    pub fn locate() -> TurtleAction {
+        TurtleAction::GpsLocate{timeout: 2f64, debug:false}
+    }
+}
 
 
 
@@ -173,9 +184,13 @@ impl TurtleAction {
     }
     fn slot_call(name: &str, slot: &u8) -> TurtleApiCall {
         match slot {
-            1..=16 => TurtleApiCall::new_wargs(format!("turtle.{}", name).as_str(), Value::from(*slot)),
+            1..=16 => TurtleApiCall::new_wargs(format!("turtle.{}", name).as_str(), Value::from(*slot), Value::Null),
             _ => panic!(format!("Slot index out of range: {}, should be [1, 16]", slot))
         }
+    }
+
+    fn gps_call(timeout: &f64, debug: &bool) -> TurtleApiCall {
+        TurtleApiCall::new_wargs("gps.locate", Value::from(*timeout), Value::from(*debug))
     }
     
     pub fn to_api_call(&self) -> TurtleApiCall {
@@ -220,7 +235,55 @@ impl TurtleAction {
             TurtleAction::ItemDetail {slot } => TurtleAction::slot_call("getItemDetail", slot),
             TurtleAction::TransferTo {slot } => TurtleAction::slot_call("transferTo", slot),
             TurtleAction::CompareTo {slot } => TurtleAction::slot_call("compareTo", slot),
-            TurtleAction::Stop => TurtleApiCall::new("stop")
+            TurtleAction::Stop => TurtleApiCall::new("stop"),
+            TurtleAction::GpsLocate {timeout, debug} => TurtleAction::gps_call(timeout, debug)
         }
+    }
+}
+
+
+#[derive(PartialEq, Debug)]
+pub enum FailureReason {
+    MovementObstructed, // move
+    NoBlockToInspect, // inspect
+    NoItemsToPlace, // place
+    CanNotPlaceItemHere, // place
+    CanNotPlaceBlockHere, // place
+    NothingToDigHere,   // dig
+    NothingToAttackHere, // attack
+    NoItemsToTake, // suck
+    NoItemsToDrop, // drop
+    SlotIsEmpty, // itemDetail
+    NoSpaceForItems, // transferTo
+    UnbreakableBlockDetected, // dig
+    GpsLocateFailure
+}
+
+#[derive(PartialEq, Debug)]
+pub enum TurtleActionReturn {
+    Success,
+    Failure(FailureReason),
+    InspectSuccess(String, serde_json::Map<String, Value>),
+    DetailSuccess(serde_json::Map<String, Value>),
+    Boolean(bool),
+    Number(u32),
+    Coordinate(Vec3<i32>)
+}
+
+
+pub fn parse_failure_reason(reason: &str) -> FailureReason {
+    match reason {
+        "Movement obstructed" => FailureReason::MovementObstructed,
+        "No block to inspect" => FailureReason::NoBlockToInspect,
+        "No items to place" => FailureReason::NoItemsToPlace,
+        "Cannot place item here" => FailureReason::CanNotPlaceItemHere,
+        "Cannot place block here" => FailureReason::CanNotPlaceBlockHere,
+        "Nothing to dig here" => FailureReason::NothingToDigHere,
+        "Nothing to attack here" => FailureReason::NothingToAttackHere,
+        "No items to take" => FailureReason::NoItemsToTake,
+        "No items to drop" => FailureReason::NoItemsToDrop,
+        "No space for items" => FailureReason::NoSpaceForItems,
+        "Unbreakable block detected" => FailureReason::UnbreakableBlockDetected,
+        _ => panic!(format!("Unknown reason {}", reason))
     }
 }

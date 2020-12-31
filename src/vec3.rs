@@ -12,7 +12,7 @@ impl<T> Vec3T<T> for T where
 {
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Vec3<T>(pub T, pub T, pub T) where T: Vec3T<T>;
 
 impl<T> Vec3<T> where T: Vec3T<T> {
@@ -72,6 +72,22 @@ impl<'a, T> SubAssign<&'a Vec3<T>> for Vec3<T> where T: Vec3T<T> {
     }
 }
 
+impl<'a, 'b, T> Sub<&'b Vec3<T>> for &'a Vec3<T> where T: Vec3T<T> {
+    type Output = Vec3<T>;
+
+    fn sub(self, rhs: &'b Vec3<T>) -> Self::Output {
+        Vec3::<T>(self.0-rhs.0, self.1-rhs.1, self.2-rhs.2)
+    }
+}
+
+impl<'a, 'b, T> Add<&'b Vec3<T>> for &'a Vec3<T> where T: Vec3T<T> {
+    type Output = Vec3<T>;
+
+    fn add(self, rhs: &'b Vec3<T>) -> Self::Output {
+        Vec3::<T>(self.0+rhs.0, self.1+rhs.1, self.2+rhs.2)
+    }
+}
+
 impl<T> Neg for Vec3<T> where T: Vec3T<T> {
     type Output = Vec3<T>;
 
@@ -81,13 +97,13 @@ impl<T> Neg for Vec3<T> where T: Vec3T<T> {
 }
 
 
-
+// fn rotate_y()
 
 #[cfg(test)]
 mod tests {
     use super::*;
     #[test]
-    fn test_addition() {
+    fn test_addassign() {
         let mut lhs: Vec3<i32> = Vec3::<i32>::from_array([1,2,3]);
         let rhs: Vec3<i32> = Vec3::<i32>::from_array([4,5,6]);
         lhs += &rhs;
@@ -95,10 +111,33 @@ mod tests {
 
     }
     #[test]
-    fn test_subtraction() {
+    fn test_subassign() {
         let mut lhs: Vec3<i32> = Vec3::<i32>::from_array([1,2,3]);
         let rhs: Vec3<i32> = Vec3::<i32>::from_array([4,5,6]);
         lhs -= &rhs;
-        // assert_eq!(lhs.arr, [-3, -3, -3]);
+        assert_eq!(lhs, Vec3::<i32>(-3, -3, -3));
     }
+
+    #[test]
+    fn test_subref() {
+        let lhs = Vec3::<i32>(1,2,3);
+        assert_eq!(Vec3::<i32>::zero(), &lhs-&lhs);
+        let rhs = Vec3::<i32>(2,4,6);
+        
+        let result = &lhs-&rhs;
+        assert_eq!(Vec3::<i32>(-1,-2,-3), result);
+
+        
+    }
+
+    
+    #[test]
+    fn test_addref() {
+        let lhs = Vec3::<i32>(1,2,3);
+        let rhs = Vec3::<i32>(2,3,4);
+        
+        let result = &lhs+&rhs;
+        assert_eq!(Vec3::<i32>(3,5,7), result);
+    }
+
 }

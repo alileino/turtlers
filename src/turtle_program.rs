@@ -1,16 +1,16 @@
-use crate::turtle_action::*;
-use anyhow::{anyhow, Result, Error};
+use crate::{turtle_action::*, turtle_state::TurtleState, vec3::Vec3};
+use anyhow::{anyhow, Result};
+use gps::locate;
 use serde_json;
 use serde_derive::{Deserialize, Serialize};
 extern crate rand;
-use rand::{Rng, seq::SliceRandom, seq::SliceChooseIter};
+use rand::{seq::SliceRandom};
 
 pub trait TurtleProgram {
-    // fn init(&mut self, start_args: serde_json::Value) -> Result<()>;
     fn next(&mut self) -> Result<TurtleAction>;
     fn progress(&self) -> (u32, u32); // Represents a fraction of progress
     fn name(&self) -> &str;
-    fn update(&mut self, msg: &TurtleResponseMsg);
+    fn update(&mut self, result: &TurtleActionReturn, action: &TurtleAction);
 }
 
 #[derive(Serialize, Deserialize)]
@@ -63,7 +63,7 @@ impl TurtleProgram for RotateProgram {
         // Ok(TurtleAction::Turn{direction: RelativeDirection::Left})
     }
 
-    fn update(&mut self, _msg: &TurtleResponseMsg)  {
+    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction)  {
         self.steps_remaining -= 1;
     }
 }
@@ -86,7 +86,7 @@ impl TurtleProgram for NoProgram {
         Err(anyhow!("Can't initialize NoProgram"))
     }
 
-    fn update(&mut self, _msg: &TurtleResponseMsg) {
+    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction) {
         todo!()
     }
 }
@@ -98,7 +98,8 @@ pub fn create_program(msg: &StartProgramMsg ) -> Result<Box<dyn TurtleProgram>> 
         match program_name.as_str() {
             "rotate" => Box::new(RotateProgram::new(args)?),
             "no" => Box::new(NoProgram{}),
-            "random" => Box::new(RandomProgram::new()),
+            "random" => Box::new(RandomProgram::new(false, false)),
+            "locatetest" => Box::new(LocationTestProgram::new()),
             program => return Err(anyhow!("Invalid program: {}", program))
     };
     Ok(boxed)
@@ -129,12 +130,78 @@ pub struct TurtleResponseMsg {
 //     Ok(result)
 // }
 
+
+
+#[derive(Debug)]
+pub struct LocationTestProgram {
+    state: TurtleState,
+    gps_initialized: bool,
+    random: RandomProgram,
+    cur_step: u32
+}
+
+impl LocationTestProgram {
+    pub fn new() -> Self {
+        let random = RandomProgram::new(false,true);
+        let state = TurtleState::new();
+        LocationTestProgram{state: state, random:random, gps_initialized:false, cur_step:0}
+    }
+}
+
+impl TurtleProgram for LocationTestProgram {
+    fn next(&mut self) -> Result<TurtleAction> {
+        if self.cur_step % 2 == 0 {
+            Ok(gps::locate())
+        } else {
+            self.random.next()
+        }
+    }
+
+    fn progress(&self) -> (u32, u32) {
+        (0,1)
+    }
+
+    fn name(&self) -> &str {
+        "locationtest"
+    }
+
+    fn update(&mut self, result: &TurtleActionReturn, action: &TurtleAction) {
+        match action {
+            TurtleAction::Move{..}|
+            TurtleAction::Turn{..} => {
+                self.state.update(action, result);
+            },
+            TurtleAction::GpsLocate{..} => {
+                if let TurtleActionReturn::Coordinate(coord) = &*result {
+                    // if self.cur_step != 0 {
+                    //     if self.state.loc != *coord {
+                    //         panic!(format!("State location {:?} differs from gps location {:?}", self.state.loc, *coord));
+                    //     }
+                    // }
+                    // println!("State was correct: {:?} == {:?}", self.state.loc, *coord);
+                    self.state.update(action, result);
+                } else {
+                    if self.state.loc_absolute.is_none() {
+                        panic!("Could not determine gps");
+                    } else {
+                        println!("Out of GPS range");
+                    }
+                }
+            },
+            _ => panic!()
+        }
+        self.cur_step += 1;
+    }
+}
+
 #[derive(Debug)]
 pub struct RandomProgram {
-    actions: [TurtleAction;66]
+    actions: [TurtleAction;67],
+    drop: bool,
+    only_move: bool
 }
 impl RandomProgram {
-    pub fn new() -> Self {
+    pub fn new(enable_drop: bool, only_move: bool) -> Self {
         let actions = [
             turn::left(), turn::right(),
             go::forward(), go::backward(),  go::up(), go::down(), 
@@ -154,9 +221,10 @@ impl RandomProgram {
             inventory::count(1), inventory::count(2), inventory::count(3), inventory::count(16),
             inventory::detail(1), inventory::detail(2), inventory::detail(3), inventory::detail(16),
             inventory::space(1), inventory::space(2), inventory::space(3), inventory::space(16), 
-            inventory::transfer_to(1), inventory::transfer_to(2),inventory::transfer_to(3), inventory::transfer_to(16)
+            inventory::transfer_to(1), inventory::transfer_to(2),inventory::transfer_to(3), inventory::transfer_to(16),
+            gps::locate()
             ];
-        RandomProgram{actions:actions}
+        RandomProgram{actions:actions, drop:enable_drop, only_move: only_move}
     }
 }
 
@@ -166,12 +234,23 @@ impl TurtleProgram for RandomProgram {
         let mut rng = rand::thread_rng();
 
         let action = self.actions.choose(&mut rng).unwrap();
-        match action {
-            TurtleAction::Drop{..} => self.next(),
-            _ => Ok(action.clone())
-        }
-        // Ok(action.clone())
 
+        if self.only_move {
+            match action {
+                TurtleAction::Move{..}|
+                TurtleAction::Turn{..} => Ok(action.clone()),
+                _ => self.next()
+            }
+        } else {
+            if !self.drop {
+                match action {
+                    TurtleAction::Drop{..} => self.next(),
+                    _ => Ok(action.clone())
+                }
+            } else {
+                Ok(action.clone())
+            }
+        }
     }
 
     fn progress(&self) -> (u32, u32) {
@@ -182,7 +261,7 @@ impl TurtleProgram for RandomProgram {
         "random"
     }
 
-    fn update(&mut self, _: &TurtleResponseMsg) {
+    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction) {
         // Don't care
     }
 }

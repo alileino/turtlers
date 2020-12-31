@@ -13,6 +13,7 @@ pub mod turtle_program;
 pub mod vec3;
 use turtle_action::*;
 use turtle_program::*;
+use vec3::Vec3;
 use std::{
     net::{TcpListener, TcpStream},
     thread::spawn
@@ -87,6 +88,7 @@ impl Turtle {
     }
 
     fn record(&mut self, action: TurtleAction) {
+        println!("{:?}", action);
         self.last_action = Some(action);
     }
 }
@@ -126,46 +128,6 @@ fn turtle_ok(socket: &mut WebSocket<TcpStream>) -> Result<()> {
     Ok(())
 }
 
-pub enum FailureReason {
-    MovementObstructed, // move
-    NoBlockToInspect, // inspect
-    NoItemsToPlace, // place
-    CanNotPlaceItemHere, // place
-    CanNotPlaceBlockHere, // place
-    NothingToDigHere,   // dig
-    NothingToAttackHere, // attack
-    NoItemsToTake, // suck
-    NoItemsToDrop, // drop
-    SlotIsEmpty, // itemDetail
-    NoSpaceForItems, // transferTo
-    UnbreakableBlockDetected // dig
-}
-
-pub fn parse_failure_reason(reason: &str) -> FailureReason {
-    match reason {
-        "Movement obstructed" => FailureReason::MovementObstructed,
-        "No block to inspect" => FailureReason::NoBlockToInspect,
-        "No items to place" => FailureReason::NoItemsToPlace,
-        "Cannot place item here" => FailureReason::CanNotPlaceItemHere,
-        "Cannot place block here" => FailureReason::CanNotPlaceBlockHere,
-        "Nothing to dig here" => FailureReason::NothingToDigHere,
-        "Nothing to attack here" => FailureReason::NothingToAttackHere,
-        "No items to take" => FailureReason::NoItemsToTake,
-        "No items to drop" => FailureReason::NoItemsToDrop,
-        "No space for items" => FailureReason::NoSpaceForItems,
-        "Unbreakable block detected" => FailureReason::UnbreakableBlockDetected,
-        _ => panic!(format!("Unknown reason {}", reason))
-    }
-}
-
-pub enum TurtleActionReturn {
-    Success,
-    Failure(FailureReason),
-    InspectSuccess(String, serde_json::Map<String, Value>),
-    DetailSuccess(serde_json::Map<String, Value>),
-    Boolean(bool),
-    Number(u32)
-}
 
 fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<TurtleActionReturn> {
     let last_action = &turtle.last_action;
@@ -227,6 +189,21 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
                     let num = result["1"].as_u64().unwrap();
                     Ok(TurtleActionReturn::Number(num as u32))
                 },
+                TurtleAction::GpsLocate{timeout: _, debug} => {
+                    if *debug {
+                        panic!();
+                    } else {
+                        if result["n"].as_u64().unwrap() == 1 {
+                            Ok(TurtleActionReturn::Failure(FailureReason::GpsLocateFailure))
+                        } else {
+                            let x = result["1"].as_i64().unwrap();
+                            let y = result["2"].as_i64().unwrap();
+                            let z = result["3"].as_i64().unwrap();
+                            Ok(TurtleActionReturn::Coordinate(Vec3::<i32>(x as i32, y as i32, z as i32)))
+                        }
+                    }
+                }
+
                 _ => panic!()
             }
         },
@@ -239,7 +216,7 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
 fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, be more specific
     // let msg_value: serde_json::Value = serde_json::from_str(msg)?;
     let msg_wtype: UnknownMsg = serde_json::from_str(msg)?;
-    println!("{}", msg);
+
     
 
     match msg_wtype.msgtype.as_str() {
@@ -253,7 +230,7 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
         "response" => {
             let resp_msg: TurtleResponseMsg = serde_json::from_str(&msg)?;
             let resp = parse_response(&turtle, &resp_msg)?;
-            // turtle.program.update(&resp_msg);
+            turtle.program.update(&resp, turtle.last_action.as_ref().unwrap());
             
         },
         x => return Err(anyhow!("Invalid msgtype received when program is finished: {}", x))
@@ -265,7 +242,7 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
         _ => panic!()
     };
     let action_str = serde_json::to_string(&action.to_api_call())?;
-    println!("{}", action_str);
+    
     turtle.record(action);
     Ok(action_str)
     // let program = create_program(&msg_value)?;
@@ -319,7 +296,7 @@ fn main() {
     
     let listener = TcpListener::bind("25.75.103.40:80").unwrap();
     for stream in listener.incoming() {
-        spawn(move || match stream {
+        let h = spawn(move || match stream {
             Ok(stream) => {
                 if let Err(err) = handle_client(stream) {
                     match err {
@@ -329,6 +306,10 @@ fn main() {
             }
             Err(e) => println!("Error accepting stream: {}", e),
         });
+        match h.join() {
+            Ok(_) => {},
+            Err(e) => return
+        }
     }
 
 }
