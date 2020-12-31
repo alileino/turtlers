@@ -5,7 +5,7 @@ use tungstenite::WebSocket;
 // use thiserror::Error;
 #[allow(unused_imports)]
 use anyhow::{anyhow, Result, Error};
-use serde_json::{self, Value};
+use serde_json::{self};
 use serde_derive::{Deserialize, Serialize};
 pub mod turtle_action;
 pub mod turtle_state;
@@ -21,28 +21,6 @@ use std::{
 
 use tungstenite::{accept, handshake::HandshakeRole, HandshakeError, Message};
 use tungstenite as tung;
-// #[derive(Error, Debug)]
-// pub enum MyErrors {
-//     #[error("unknown")]
-//     Unknown,
-// }
-
-// #[macro_export]
-// macro_rules! Err {
-//     ($err:expr $(,)?) => {{
-//         let error = $err;
-//         Err(anyhow::anyhow!(error))
-//     }};
-// }
-
-// macro_rules! unwrap_or_error {
-//     ( $e:expr ) => {
-//         match $e {
-//             Ok(x) => x,
-//             Err(_) => Err(_),
-//         }
-//     }
-// }
 
 fn must_not_block<Role: HandshakeRole>(err: HandshakeError<Role>) -> tung::Error {
     match err {
@@ -110,7 +88,6 @@ pub fn create_turtle(initialization_msg: &str) -> Result<Turtle> {
     
     let turtle = Turtle::new(v.id);
     Ok(turtle)
-    // Turtle {id}
 }
 
 
@@ -308,7 +285,7 @@ fn main() {
         });
         match h.join() {
             Ok(_) => {},
-            Err(e) => return
+            Err(_) => return
         }
     }
 

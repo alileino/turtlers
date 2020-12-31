@@ -1,6 +1,5 @@
-use crate::{turtle_action::*, turtle_state::TurtleState, vec3::Vec3};
+use crate::{turtle_action::*, turtle_state::LocationState};
 use anyhow::{anyhow, Result};
-use gps::locate;
 use serde_json;
 use serde_derive::{Deserialize, Serialize};
 extern crate rand;
@@ -63,7 +62,7 @@ impl TurtleProgram for RotateProgram {
         // Ok(TurtleAction::Turn{direction: RelativeDirection::Left})
     }
 
-    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction)  {
+    fn update(&mut self, _result: &TurtleActionReturn, _action: &TurtleAction)  {
         self.steps_remaining -= 1;
     }
 }
@@ -86,7 +85,7 @@ impl TurtleProgram for NoProgram {
         Err(anyhow!("Can't initialize NoProgram"))
     }
 
-    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction) {
+    fn update(&mut self, _result: &TurtleActionReturn, _action: &TurtleAction) {
         todo!()
     }
 }
@@ -134,7 +133,7 @@ pub struct TurtleResponseMsg {
 
 #[derive(Debug)]
 pub struct LocationTestProgram {
-    state: TurtleState,
+    state: LocationState,
     gps_initialized: bool,
     random: RandomProgram,
     cur_step: u32
@@ -143,7 +142,7 @@ pub struct LocationTestProgram {
 impl LocationTestProgram {
     pub fn new() -> Self {
         let random = RandomProgram::new(false,true);
-        let state = TurtleState::new();
+        let state = LocationState::new();
         LocationTestProgram{state: state, random:random, gps_initialized:false, cur_step:0}
     }
 }
@@ -172,18 +171,14 @@ impl TurtleProgram for LocationTestProgram {
                 self.state.update(action, result);
             },
             TurtleAction::GpsLocate{..} => {
-                if let TurtleActionReturn::Coordinate(coord) = &*result {
-                    // if self.cur_step != 0 {
-                    //     if self.state.loc != *coord {
-                    //         panic!(format!("State location {:?} differs from gps location {:?}", self.state.loc, *coord));
-                    //     }
-                    // }
-                    // println!("State was correct: {:?} == {:?}", self.state.loc, *coord);
+                if let TurtleActionReturn::Coordinate(_) = &*result {
                     self.state.update(action, result);
                 } else {
                     if self.state.loc_absolute.is_none() {
+                        // Execution was started out of gps range
                         panic!("Could not determine gps");
                     } else {
+                        // Execution _ended up_ out of gps range
                         println!("Out of GPS range");
                     }
                 }
@@ -261,7 +256,7 @@ impl TurtleProgram for RandomProgram {
         "random"
     }
 
-    fn update(&mut self, _result: &TurtleActionReturn, action: &TurtleAction) {
+    fn update(&mut self, _result: &TurtleActionReturn, _action: &TurtleAction) {
         // Don't care
     }
 }

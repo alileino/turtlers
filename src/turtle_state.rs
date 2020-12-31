@@ -1,8 +1,7 @@
 
-use crate::{Turtle, turtle_action::*};
-use std::{ops::Index, panic::Location};
+use crate::{turtle_action::*};
+use std::{ops::Index};
 use crate::vec3::*;
-use std::mem::take;
 // Guesses the state of turtle by the recorded executed commands.
 type Coord = Vec3::<i32>;
 #[derive(PartialEq, Debug)]
@@ -37,13 +36,13 @@ impl Rotation {
     const ROT_Y270: (Coord, Coord, Coord) = (Vec3::<i32>(0, 0, -1), Vec3::<i32>(0,1,0), Vec3::<i32>(1,0,0));
 
     pub fn apply_to(&self, vec: &Coord) -> Coord {
-        let M = match self {
+        let (x, _y, z) = match self {
             Rotation::Y0 => Rotation::ROT_0,
             Rotation::Y90 => Rotation::ROT_Y90,
             Rotation::Y180 => Rotation::ROT_Y180,
             Rotation::Y270 => Rotation::ROT_Y270
         };
-        let (x,y,z) = M;
+        
         Vec3::<i32>(x.0*vec.0 + x.2*vec.2, vec.1, z.0*vec.0 + z.2*vec.2)
     }
 
@@ -105,35 +104,23 @@ pub enum LocationMode {
  
 
 #[derive(Debug)]
-pub struct TurtleState {
+pub struct LocationState {
     pub loc: Coord, // Relative location
     pub loc_absolute: Option<Coord>, // Absolute, requires two GPS measurements from different locations
     direction: AxisDirection,
-    pub location_precision: LocationMode,
-    gps1: Option<(Coord, Coord)>, // Relative, absolute
-    gps2: Option<(Coord, Coord)>, // Relative, absolute
-
+    pub location_precision: LocationMode
 }
 
 
-impl TurtleState {
+impl LocationState {
     const DEFAULT_DIRECTION: AxisDirection = AxisDirection::Xp;
     pub fn new() -> Self {
-        TurtleState {
+        LocationState {
             loc: Vec3::zero(), 
-            direction: TurtleState::DEFAULT_DIRECTION, 
+            direction: LocationState::DEFAULT_DIRECTION, 
             loc_absolute: None,
-            location_precision: LocationMode::Relative(None),
-            gps1: None,
-            gps2: None
+            location_precision: LocationMode::Relative(None)
         }
-    }
-
-    fn calculate_absolute_location(&self) -> Coord {
-        // if let LocationMode::Absolute(pos1, pos2) = &self.location_precision {
-            
-        // }
-        Coord::zero()
     }
 
     fn update_gps(&mut self, loc: &Vec3<i32>) {
@@ -153,7 +140,7 @@ impl TurtleState {
                 self.location_precision = LocationMode::Absolute((loc1.1.to_owned(), rotation));
 
             },
-            LocationMode::Absolute(loc1) => {
+            LocationMode::Absolute(_) => {
                 if self.loc_absolute.as_ref().unwrap()!= loc {
                     panic!("New gps measurement {:?} differs from calculated value of {:?}", loc, self.loc_absolute);
                 }
@@ -161,14 +148,12 @@ impl TurtleState {
         }
 
     }
-    // fn relative_to_absolute()
+
     fn update_absolute_location(&mut self) {
         if let LocationMode::Absolute((base, rot)) = &self.location_precision {
             
             let loc_wrot = rot.apply_to(&self.loc);
-            println!("Rotation location: {:?}", loc_wrot);
             let loc_woffset = &loc_wrot + base;
-            println!("Offset location: {:?}", loc_woffset);
             self.loc_absolute = Some(loc_woffset);
         }
     }
@@ -211,7 +196,7 @@ impl TurtleState {
     }
 }
 
-impl Index<usize> for TurtleState {
+impl Index<usize> for LocationState {
     type Output = i32;
     fn index<'a>(&'a self, i: usize) -> &'a i32 {
         &self.loc[i]
@@ -224,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_single_move() {
-        let mut state =  TurtleState::new();
+        let mut state =  LocationState::new();
     
         assert_eq!(AxisDirection::Xp, state.direction);
         let move_action = go::forward();
@@ -240,7 +225,7 @@ mod tests {
     }
     #[test]
     fn test_turn_move() {
-        let mut state = TurtleState::new();
+        let mut state = LocationState::new();
         state.update(&turn::left(), &TurtleActionReturn::Success);
         assert_eq!(AxisDirection::Zm, state.direction);
         state.update(&go::forward(), &TurtleActionReturn::Success);
@@ -256,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_circle_turns() {
-        let mut state = TurtleState::new();
+        let mut state = LocationState::new();
         /*  Before each iteration      after
                 21                      14
                 34                      23
