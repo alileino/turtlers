@@ -15,7 +15,7 @@ use turtle_action::*;
 use turtle_program::*;
 use turtle_state::TurtleState;
 use vec3::Vec3;
-use std::{net::{TcpListener, TcpStream}, thread::{self, spawn}, time};
+use std::{io, net::{TcpListener, TcpStream}, thread::{self, spawn}, time};
 
 use tungstenite::{accept, handshake::HandshakeRole, HandshakeError, Message};
 use tungstenite as tung;
@@ -43,10 +43,10 @@ enum ProgramState {
 impl Turtle {
     pub fn new(name: String) -> Self {
         Turtle {
-            id: name, 
+            id: name.clone(), 
             program: Box::new(NoProgram{}),
             last_action: None,
-            state: TurtleState::new()
+            state: TurtleState::new(name)
         }
     }
 
@@ -273,9 +273,11 @@ fn handle_client(stream: TcpStream) -> Result<()> {
 }
 
 
+
 fn main() {
     
     let listener = TcpListener::bind("25.75.103.40:80").unwrap();
+
     for stream in listener.incoming() {
         let h = spawn(move || match stream {
             Ok(stream) => {
@@ -284,8 +286,8 @@ fn main() {
                         e => println!("Client error: {}", e),
                     }
                 }
-            }
-            Err(e) => println!("Error accepting stream: {}", e),
+            },
+            Err(ref e) => println!("Error accepting stream: {}", e),
         });
         match h.join() {
             Ok(_) => {},

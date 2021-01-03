@@ -1,4 +1,5 @@
 use std::ops::{Index, AddAssign, SubAssign, Add, Sub, Neg};
+use serde_derive::{Deserialize, Serialize};
 
 
 pub trait Vec3T<T>:
@@ -12,7 +13,7 @@ impl<T> Vec3T<T> for T where
 {
 }
 
-#[derive(PartialEq, Debug, Clone, Eq, Hash)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Vec3<T>(pub T, pub T, pub T) where T: Vec3T<T>;
 
 impl<T> Vec3<T> where T: Vec3T<T> {

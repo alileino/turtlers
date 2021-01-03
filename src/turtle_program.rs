@@ -191,7 +191,7 @@ impl TurtleProgram for LocationTestProgram {
 
 #[derive(Debug)]
 pub struct RandomProgram {
-    actions: [TurtleAction;65],
+    actions: [TurtleAction;67],
     drop: bool,
     only_move: bool
 }
@@ -199,7 +199,7 @@ impl RandomProgram {
     pub fn new(enable_drop: bool, only_move: bool) -> Self {
         let actions = [
             turn::left(), turn::right(),
-            go::forward(), go::backward(),  //go::up(), go::down(), 
+            go::forward(), go::backward(),  go::up(), go::down(), 
             dig::forward(), dig::up(), dig::down(),
             detect::forward(), detect::down(), detect::up(),
             place::forward(), place::down(), place::up(),

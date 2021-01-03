@@ -1,10 +1,12 @@
 
 
 use core::cmp::{min, max};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use crate::{turtle_action::*};
 use std::{ops::Index};
 use crate::vec3::*;
+use anyhow::{anyhow, Result, Error};
+use std::io::prelude::*;
 // Guesses the state of turtle by the recorded executed commands.
 type Coord = Vec3::<i32>;
 
@@ -14,10 +16,10 @@ pub struct TurtleState {
 }
 
 impl TurtleState {
-    pub fn new() -> Self {
+    pub fn new(id: String) -> Self {
         TurtleState{
             location: LocationState::new(),
-            world: WorldState::new()
+            world: WorldState::new(id)
         }
     }
 
@@ -26,7 +28,7 @@ impl TurtleState {
         self.world.update(action, result, &self.location);
     }
 }
-
+#[derive(Clone, PartialEq, Eq)]
 pub enum Block {
     Unknown,
     Air,
@@ -34,9 +36,31 @@ pub enum Block {
     Block
 }
 
+impl Block {
+    pub fn to_ascii(&self) -> char {
+        match self {
+            Block::Unknown => ' ',
+            Block::Air => '.',
+            Block::Block => '█',
+            Block::AirOrGravityBlock => '^'
+        }
+    }
+
+    pub fn from(c: char) -> Self {
+        match c {
+            ' ' => Block::Unknown,
+            '.' => Block::Air,
+            '█' => Block::Block,
+            '^' => Block::AirOrGravityBlock,
+            _ => panic!()
+        }
+    }
+}
+
 
 pub struct WorldState {
-    state: HashMap<Coord, Block>
+    state: HashMap<Coord, Block>,
+    id: String
 }
 
 pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
@@ -52,57 +76,114 @@ pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
         z_max = max(coord.2, z_max);
     }
     (Vec3::<i32>(x_min, y_min, z_min), Vec3::<i32>(x_max, y_max, z_max))
-
 }
 
 impl WorldState {
-    pub fn new() -> Self {
+    pub fn new(id: String) -> Self {
+        let dest_path = WorldState::format_save_dir(id.as_str());
+        std::fs::create_dir_all(dest_path).unwrap();
+        let state_fromfile = WorldState::deserialize(id.as_str());
+        let state = match state_fromfile {
+            Ok(state) => state,
+            Err(e) => panic!(format!("{}, {:?}", e, e.source())) //HashMap::new()
+        };
+        
         WorldState {
-            state: HashMap::new()
+            state: state,
+            id: id
+        }
+    }
+
+    fn format_save_dir(id: &str) -> String {
+        format!("state/{}", id)
+    }
+
+    fn state_filepath(id: &str) -> String {
+        let dir = WorldState::format_save_dir(id);
+        format!("{}/state.txt", dir)
+    }
+
+
+
+    fn serialize(&self) -> Result<()> {
+        let path = WorldState::state_filepath(&self.id);
+        let (minv, maxv) = dimensions(self.state.keys());
+        
+        let mut file = std::fs::File::create(path)?;
+        write!(&mut file, "{}\n", 1)?;
+        for y in minv.1..=maxv.1 {
+            let start = Vec3::<i32>(minv.0, y, minv.2);
+            let start_str = serde_json::to_string(&start)?;
+            let end = Vec3::<i32>(maxv.0, y, maxv.2);
+            let end_str = serde_json::to_string(&end)?;
+            write!(&mut file, "{}\n{}\n", start_str, end_str)?;
+            file.write_all(self.to_ascii(y).as_bytes())?;
+        }
+        Ok(())
+
+    }
+
+    fn update_at(&mut self, loc_absolute: Coord, block: Block) {
+        let previous = self.state.insert(loc_absolute, block.clone());
+        match previous {
+            Some(ref oldblock) if oldblock==&block => {}, // do nothing
+            _ => self.serialize().unwrap()
+        };
+    }
+
+    fn is_solid_above(&self, loc: &Coord) -> bool {
+        let above = loc + &AxisDirection::AD_YP;
+        match self.state.get(&above) {
+            Some(block) if matches!(block, Block::Unknown|Block::AirOrGravityBlock) => false, // don't know
+            Some(block) if matches!(block, Block::Block) => true,
+            Some(_) => {
+                self.is_solid_above(&above)
+            },
+            None => false
         }
     }
 
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn, loc: &LocationState) {
-        
-        match (action, result) {
-            (TurtleAction::Move{direction}, TurtleActionReturn::Success) 
-                if matches!(direction, RelativeDirection::Forward|RelativeDirection::Backward|RelativeDirection::Up) => {
-                    self.state.insert(loc.loc.clone(), Block::Air);
+        if let Some(loc_absolute) = loc.loc_absolute.clone() {
+            match (action, result) {
+                (TurtleAction::Move{direction}, TurtleActionReturn::Success) 
+                    if matches!(direction, RelativeDirection::Forward|RelativeDirection::Backward|RelativeDirection::Up) => {
+                        self.update_at(loc_absolute, Block::Air);
+                        
+                    }
+                (TurtleAction::Move{direction}, TurtleActionReturn::Success)
+                    if matches!(direction, RelativeDirection::Down) => {
+                        let is_block_above = self.is_solid_above(&loc_absolute);
+                        if is_block_above {
+                            self.update_at(loc_absolute, Block::Air);
+                        } else {
+                            self.update_at(loc_absolute, Block::AirOrGravityBlock);
+                        }
+                    },
+                (TurtleAction::Move{direction}, TurtleActionReturn::Failure(_reason)) => {
+                    let unit_dir = loc.get_dest_direction_absolute(&direction).unwrap(); // has to exist since we are in absolute
+                    let dest = &loc_absolute + &unit_dir;
+                    self.update_at(dest, Block::Block);
                 }
-            (TurtleAction::Move{direction}, TurtleActionReturn::Success)
-                if matches!(direction, RelativeDirection::Down) => {
-                    self.state.insert(loc.loc.clone(), Block::AirOrGravityBlock);
-                },
-            (TurtleAction::Move{direction}, TurtleActionReturn::Failure(reason)) => {
-                let unit_dir = loc.get_dest_direction(&direction);
-                let dest = &loc.loc + &unit_dir;
-                self.state.insert(dest, Block::Block);
-                println!("{}", self.to_ascii());
+                _ => {}
             }
-            _ => {}
         }
     }
 
-    pub fn to_ascii(&self) -> String {
+    pub fn to_ascii(&self, layer: i32) -> String {
         let mut result: String = String::new();
         let (minv, maxv) = dimensions(self.state.keys());
         
-        println!("Printing from {:?} to {:?}", minv, maxv);
-        let y = 0;
+        let y = layer;
         for x in ((minv.0)..=(maxv.0)).rev() {
             for z in minv.2..=maxv.2 {
-                let key  = Vec3::<i32>(x,y,z);
+                let key  = Vec3::<i32>(x,layer,z);
                 let value = self.state.get(&key);
                 let block = match value {
                     Some(x) => x,
                     None => &Block::Unknown
                 };
-                let c = match block {
-                    Block::Unknown => '?',
-                    Block::Air => '.',
-                    Block::Block => '#',
-                    Block::AirOrGravityBlock => '^'
-                };
+                let c = block.to_ascii();
                 result.push(c);
 
             }
@@ -110,6 +191,46 @@ impl WorldState {
         }
         result
     }
+
+    
+    fn deserialize(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
+        let path = WorldState::state_filepath(id);
+        let mut result: HashMap<Vec3<i32>, Block> = HashMap::new();
+        // let file = std::fs::File::open(path)?;
+        println!("Opening path {}", path);
+        let contents = std::fs::read_to_string(path)?;
+        let lines: Vec<&str> = contents.split('\n').collect();
+        let version = lines.first().expect("Illegal file");
+        println!("{:?}", lines);
+        let mut iter = lines[1..].iter();
+        while let Some(mut line) = iter.next() {
+            if line.trim() == "" {
+                break;
+            }
+            println!("Line: {}", line);
+            let minv: Coord = serde_json::from_str(line)?;
+            line = iter.next().unwrap();
+            println!("Line: {}", line);
+            let maxv: Coord = serde_json::from_str(line)?;
+            let y = minv.1;
+            for x in (minv.0..=maxv.0).rev() {
+                
+                line = iter.next().unwrap();
+                println!("x={}, Line: {}", x, line);
+                
+                let mut citer = line.chars();
+                for z in minv.2..=maxv.2 {
+                    let val = citer.next().unwrap();
+                    let key = Vec3::<i32>(x, y, z);        
+                    result.insert(key, Block::from(val));
+                }
+            }
+        }
+
+
+        Ok(result)
+    }
+
 }
 
 
@@ -268,7 +389,7 @@ impl LocationState {
     }
 
 
-    pub fn get_dest_direction(&self, move_direction: &RelativeDirection) -> Coord {
+    pub fn get_dest_direction_local(&self, move_direction: &RelativeDirection) -> Coord {
         //Returns the destination location from given direction
         match move_direction {
             RelativeDirection::Up => AxisDirection::AD_YP,
@@ -279,13 +400,22 @@ impl LocationState {
         }
     }
 
+    pub fn get_dest_direction_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {
+        let unit_dir = self.get_dest_direction_local(move_direction);
+        if let LocationMode::Absolute((base, rot)) = &self.location_precision {
+            Some(rot.apply_to(&unit_dir))
+        } else {
+            None
+        }
+    }
+
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
         match action {
             TurtleAction::Move {direction} => {
                 if *result != TurtleActionReturn::Success {
                     return;
                 }
-                let unit_dir = self.get_dest_direction(&direction);
+                let unit_dir = self.get_dest_direction_local(&direction);
                 self.loc += &unit_dir;
 
             },
@@ -375,5 +505,11 @@ mod tests {
         assert_eq!(AxisDirection::Xp, state.direction);
         assert_eq!(Coord::zero(), state.loc);
 
+    }
+
+    #[test]
+    fn test_world_state_loading() {
+        let mut state = WorldState::new("0".to_string());
+        
     }
 }
