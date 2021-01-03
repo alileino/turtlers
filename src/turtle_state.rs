@@ -1,12 +1,13 @@
 
 
 use core::cmp::{min, max};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use crate::{turtle_action::*};
 use std::{ops::Index};
 use crate::vec3::*;
-use anyhow::{anyhow, Result, Error};
+use anyhow::{Result};
 use std::io::prelude::*;
+use crate::{turtle_rotation::*};
 // Guesses the state of turtle by the recorded executed commands.
 type Coord = Vec3::<i32>;
 
@@ -173,11 +174,10 @@ impl WorldState {
     pub fn to_ascii(&self, layer: i32) -> String {
         let mut result: String = String::new();
         let (minv, maxv) = dimensions(self.state.keys());
-        
-        let y = layer;
+
         for x in ((minv.0)..=(maxv.0)).rev() {
             for z in minv.2..=maxv.2 {
-                let key  = Vec3::<i32>(x,layer,z);
+                let key  = Vec3::<i32>(x, layer, z);
                 let value = self.state.get(&key);
                 let block = match value {
                     Some(x) => x,
@@ -201,6 +201,7 @@ impl WorldState {
         let contents = std::fs::read_to_string(path)?;
         let lines: Vec<&str> = contents.split('\n').collect();
         let version = lines.first().expect("Illegal file");
+        assert_eq!(&"1", version);
         println!("{:?}", lines);
         let mut iter = lines[1..].iter();
         while let Some(mut line) = iter.next() {
@@ -234,95 +235,6 @@ impl WorldState {
 }
 
 
-#[derive(PartialEq, Debug)]
-pub enum AxisDirection {
-    Xp,
-    Xm,
-    Zp,
-    Zm
-}
-
-/*
-    Xp
-Zm      Zp
-    Xm
-
-*/
-#[derive(Debug, Clone)]
-pub enum Rotation {
-    Y0,
-    Y90,
-    Y180,
-    Y270
-}
-
-impl Rotation {
-    
-    const ALL: [Rotation;4] = [Rotation::Y0, Rotation::Y90, Rotation::Y180, Rotation::Y270];
-
-    const ROT_0: (Coord, Coord, Coord) = (Vec3::<i32>(1,0,0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,1));
-    const ROT_Y90: (Coord, Coord, Coord) = (Vec3::<i32>(0,0,1), Vec3::<i32>(0,1,0), Vec3::<i32>(-1,0,0));
-    const ROT_Y180: (Coord, Coord, Coord) = (Vec3::<i32>(-1, 0, 0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,-1));
-    const ROT_Y270: (Coord, Coord, Coord) = (Vec3::<i32>(0, 0, -1), Vec3::<i32>(0,1,0), Vec3::<i32>(1,0,0));
-
-    pub fn apply_to(&self, vec: &Coord) -> Coord {
-        let (x, _y, z) = match self {
-            Rotation::Y0 => Rotation::ROT_0,
-            Rotation::Y90 => Rotation::ROT_Y90,
-            Rotation::Y180 => Rotation::ROT_Y180,
-            Rotation::Y270 => Rotation::ROT_Y270
-        };
-        
-        Vec3::<i32>(x.0*vec.0 + x.2*vec.2, vec.1, z.0*vec.0 + z.2*vec.2)
-    }
-
-    pub fn find_rotation(src: &Coord, dst: &Coord) -> Self {
-        for rot in Rotation::ALL.iter() {
-            if &rot.apply_to(src) == dst {
-                return rot.clone();
-            }
-        }
-        panic!()
-    }
-}
-
-impl AxisDirection {
-    const AD_XP: Vec3<i32> = Vec3::<i32>(1,0,0);
-    const AD_XM: Vec3<i32> = Vec3::<i32>(-1,0,0);
-    const AD_ZP: Vec3<i32> = Vec3::<i32>(0,0,1);
-    const AD_ZM: Vec3<i32> = Vec3::<i32>(0,0,-1);
-    const AD_YP: Vec3<i32> = Vec3::<i32>(0,1,0);
-    const AD_YM: Vec3<i32> = Vec3::<i32>(0,-1,0);
-
-    fn to_unit_vector(&self) -> Vec3<i32> {
-        match self {
-            AxisDirection::Xp => AxisDirection::AD_XP,
-            AxisDirection::Xm => AxisDirection::AD_XM,
-            AxisDirection::Zp => AxisDirection::AD_ZP,
-            AxisDirection::Zm => AxisDirection::AD_ZM
-        }
-    }
-
-    fn rotate_right(&self) -> AxisDirection {
-        match self {
-            AxisDirection::Xp => AxisDirection::Zp,
-            AxisDirection::Zp => AxisDirection::Xm,
-            AxisDirection::Xm => AxisDirection::Zm,
-            AxisDirection::Zm => AxisDirection::Xp
-        }
-    }
-
-    fn rotate_left(&self) -> AxisDirection {
-        match self {
-            AxisDirection::Xp => AxisDirection::Zm,
-            AxisDirection::Zm => AxisDirection::Xm,
-            AxisDirection::Xm => AxisDirection::Zp,
-            AxisDirection::Zp => AxisDirection::Xp
-        }
-    }
-
-}
-
 
 //  Two different measurements guarantee the orientation of the state
 #[derive(Debug, Clone)]
@@ -340,7 +252,6 @@ pub struct LocationState {
     direction: AxisDirection,
     pub location_precision: LocationMode
 }
-
 
 impl LocationState {
     const DEFAULT_DIRECTION: AxisDirection = AxisDirection::Xp;
@@ -402,7 +313,7 @@ impl LocationState {
 
     pub fn get_dest_direction_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {
         let unit_dir = self.get_dest_direction_local(move_direction);
-        if let LocationMode::Absolute((base, rot)) = &self.location_precision {
+        if let LocationMode::Absolute((_base, rot)) = &self.location_precision {
             Some(rot.apply_to(&unit_dir))
         } else {
             None

@@ -189,6 +189,8 @@ impl TurtleProgram for LocationTestProgram {
     }
 }
 
+
+
 #[derive(Debug)]
 pub struct RandomProgram {
     actions: [TurtleAction;67],
