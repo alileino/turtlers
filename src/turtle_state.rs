@@ -301,14 +301,7 @@ impl LocationState {
 
 
     pub fn get_dest_direction_local(&self, move_direction: &RelativeDirection) -> Coord {
-        //Returns the destination location from given direction
-        match move_direction {
-            RelativeDirection::Up => AxisDirection::AD_YP,
-            RelativeDirection::Down => AxisDirection::AD_YM,
-            RelativeDirection::Forward => self.direction.to_unit_vector(),
-            RelativeDirection::Backward => (-self.direction.to_unit_vector()),
-            _ => panic!()
-        }
+        get_dest_axisdirection(&self.direction, move_direction)
     }
 
     pub fn get_dest_direction_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {

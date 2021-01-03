@@ -12,7 +12,7 @@ pub enum RelativeDirection {
     Up
 }
 
-#[derive(PartialEq, Debug, Eq, Hash)]
+#[derive(PartialEq, Debug, Eq, Hash, Clone)]
 pub enum AxisDirection {
     Xp,
     Xm,
