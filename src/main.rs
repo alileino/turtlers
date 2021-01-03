@@ -13,11 +13,9 @@ pub mod turtle_program;
 pub mod vec3;
 use turtle_action::*;
 use turtle_program::*;
+use turtle_state::TurtleState;
 use vec3::Vec3;
-use std::{
-    net::{TcpListener, TcpStream},
-    thread::spawn
-};
+use std::{net::{TcpListener, TcpStream}, thread::{self, spawn}, time};
 
 use tungstenite::{accept, handshake::HandshakeRole, HandshakeError, Message};
 use tungstenite as tung;
@@ -32,7 +30,8 @@ fn must_not_block<Role: HandshakeRole>(err: HandshakeError<Role>) -> tung::Error
 pub struct Turtle {
     id: String,
     program: Box<dyn TurtleProgram>,
-    last_action: Option<TurtleAction>
+    last_action: Option<TurtleAction>,
+    state: TurtleState
 }
 
 enum ProgramState {
@@ -46,7 +45,8 @@ impl Turtle {
         Turtle {
             id: name, 
             program: Box::new(NoProgram{}),
-            last_action: None
+            last_action: None,
+            state: TurtleState::new()
         }
     }
 
@@ -61,13 +61,18 @@ impl Turtle {
 
     fn set_program(&mut self, program: Box<dyn TurtleProgram>) {
         self.program = program;
-        // self.program.start();
         println!("Set program to {}", self.program.name());
     }
 
     fn record(&mut self, action: TurtleAction) {
         println!("{:?}", action);
         self.last_action = Some(action);
+    }
+
+    fn update(&mut self, result: &TurtleActionReturn) {
+        let action = self.last_action.as_ref().unwrap();
+        self.state.update(action, result);
+        self.program.update(action, result);
     }
 }
 
@@ -89,9 +94,6 @@ pub fn create_turtle(initialization_msg: &str) -> Result<Turtle> {
     let turtle = Turtle::new(v.id);
     Ok(turtle)
 }
-
-
-
 
 #[derive(Serialize)]
 struct TurtleResult {
@@ -207,7 +209,7 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
         "response" => {
             let resp_msg: TurtleResponseMsg = serde_json::from_str(&msg)?;
             let resp = parse_response(&turtle, &resp_msg)?;
-            turtle.program.update(&resp, turtle.last_action.as_ref().unwrap());
+            turtle.update(&resp);
             
         },
         x => return Err(anyhow!("Invalid msgtype received when program is finished: {}", x))
@@ -252,6 +254,7 @@ fn do_client_stuff(mut socket: &mut WebSocket<TcpStream>, initialization_msg: &s
                 println!("Ping/pong/close")
             }
         }
+        thread::sleep(time::Duration::from_millis(1));
     }
 }
 
@@ -268,6 +271,7 @@ fn handle_client(stream: TcpStream) -> Result<()> {
     }
 
 }
+
 
 fn main() {
     

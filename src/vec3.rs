@@ -12,7 +12,7 @@ impl<T> Vec3T<T> for T where
 {
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Eq, Hash)]
 pub struct Vec3<T>(pub T, pub T, pub T) where T: Vec3T<T>;
 
 impl<T> Vec3<T> where T: Vec3T<T> {

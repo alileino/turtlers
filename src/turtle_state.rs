@@ -1,9 +1,118 @@
 
+
+use core::cmp::{min, max};
+use std::collections::HashMap;
 use crate::{turtle_action::*};
 use std::{ops::Index};
 use crate::vec3::*;
 // Guesses the state of turtle by the recorded executed commands.
 type Coord = Vec3::<i32>;
+
+pub struct TurtleState {
+    location: LocationState,
+    world: WorldState
+}
+
+impl TurtleState {
+    pub fn new() -> Self {
+        TurtleState{
+            location: LocationState::new(),
+            world: WorldState::new()
+        }
+    }
+
+    pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
+        self.location.update(action, result);
+        self.world.update(action, result, &self.location);
+    }
+}
+
+pub enum Block {
+    Unknown,
+    Air,
+    AirOrGravityBlock,
+    Block
+}
+
+
+pub struct WorldState {
+    state: HashMap<Coord, Block>
+}
+
+pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
+    let (mut x_min, mut x_max): (i32, i32) = (i32::MAX, i32::MIN);
+    let (mut y_min, mut y_max): (i32, i32) = (i32::MAX, i32::MIN);
+    let (mut z_min, mut z_max): (i32, i32) = (i32::MAX, i32::MIN);
+    for coord in iter {
+        x_min = min(coord.0, x_min);
+        x_max = max(coord.0, x_max);
+        y_min = min(coord.1, y_min);
+        y_max = max(coord.1, y_max);
+        z_min = min(coord.2, z_min);
+        z_max = max(coord.2, z_max);
+    }
+    (Vec3::<i32>(x_min, y_min, z_min), Vec3::<i32>(x_max, y_max, z_max))
+
+}
+
+impl WorldState {
+    pub fn new() -> Self {
+        WorldState {
+            state: HashMap::new()
+        }
+    }
+
+    pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn, loc: &LocationState) {
+        
+        match (action, result) {
+            (TurtleAction::Move{direction}, TurtleActionReturn::Success) 
+                if matches!(direction, RelativeDirection::Forward|RelativeDirection::Backward|RelativeDirection::Up) => {
+                    self.state.insert(loc.loc.clone(), Block::Air);
+                }
+            (TurtleAction::Move{direction}, TurtleActionReturn::Success)
+                if matches!(direction, RelativeDirection::Down) => {
+                    self.state.insert(loc.loc.clone(), Block::AirOrGravityBlock);
+                },
+            (TurtleAction::Move{direction}, TurtleActionReturn::Failure(reason)) => {
+                let unit_dir = loc.get_dest_direction(&direction);
+                let dest = &loc.loc + &unit_dir;
+                self.state.insert(dest, Block::Block);
+                println!("{}", self.to_ascii());
+            }
+            _ => {}
+        }
+    }
+
+    pub fn to_ascii(&self) -> String {
+        let mut result: String = String::new();
+        let (minv, maxv) = dimensions(self.state.keys());
+        
+        println!("Printing from {:?} to {:?}", minv, maxv);
+        let y = 0;
+        for x in ((minv.0)..=(maxv.0)).rev() {
+            for z in minv.2..=maxv.2 {
+                let key  = Vec3::<i32>(x,y,z);
+                let value = self.state.get(&key);
+                let block = match value {
+                    Some(x) => x,
+                    None => &Block::Unknown
+                };
+                let c = match block {
+                    Block::Unknown => '?',
+                    Block::Air => '.',
+                    Block::Block => '#',
+                    Block::AirOrGravityBlock => '^'
+                };
+                result.push(c);
+
+            }
+            result.push('\n');
+        }
+        result
+    }
+}
+
+
 #[derive(PartialEq, Debug)]
 pub enum AxisDirection {
     Xp,
@@ -157,20 +266,26 @@ impl LocationState {
             self.loc_absolute = Some(loc_woffset);
         }
     }
+
+
+    pub fn get_dest_direction(&self, move_direction: &RelativeDirection) -> Coord {
+        //Returns the destination location from given direction
+        match move_direction {
+            RelativeDirection::Up => AxisDirection::AD_YP,
+            RelativeDirection::Down => AxisDirection::AD_YM,
+            RelativeDirection::Forward => self.direction.to_unit_vector(),
+            RelativeDirection::Backward => (-self.direction.to_unit_vector()),
+            _ => panic!()
+        }
+    }
+
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
         match action {
             TurtleAction::Move {direction} => {
                 if *result != TurtleActionReturn::Success {
                     return;
                 }
-                let unit_dir = 
-                match direction {
-                    RelativeDirection::Up => AxisDirection::AD_YP,
-                    RelativeDirection::Down => AxisDirection::AD_YM,
-                    RelativeDirection::Forward => self.direction.to_unit_vector(),
-                    RelativeDirection::Backward => (-self.direction.to_unit_vector()),
-                    _ => panic!()
-                };
+                let unit_dir = self.get_dest_direction(&direction);
                 self.loc += &unit_dir;
 
             },
