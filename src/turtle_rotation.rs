@@ -1,6 +1,18 @@
 use crate::{vec3::Vec3};
 type Coord = Vec3::<i32>;
-#[derive(PartialEq, Debug)]
+
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum RelativeDirection {
+    Forward,
+    Backward,
+    Right,
+    Left,
+    Down,
+    Up
+}
+
+#[derive(PartialEq, Debug, Eq, Hash)]
 pub enum AxisDirection {
     Xp,
     Xm,
@@ -89,3 +101,13 @@ impl AxisDirection {
 
 }
 
+pub fn get_dest_axisdirection(cur_axis: &AxisDirection, move_direction: &RelativeDirection) -> Coord {
+    //Returns the destination location from given direction
+    match move_direction {
+        RelativeDirection::Up => AxisDirection::AD_YP,
+        RelativeDirection::Down => AxisDirection::AD_YM,
+        RelativeDirection::Forward => cur_axis.to_unit_vector(),
+        RelativeDirection::Backward => (-cur_axis.to_unit_vector()),
+        _ => panic!()
+    }
+}

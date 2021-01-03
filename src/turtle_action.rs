@@ -1,6 +1,6 @@
 use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
-
+use crate::{turtle_rotation::*};
 use crate::{vec3::Vec3};
 /*
 1. Generate as many actions as can be generated
@@ -13,16 +13,6 @@ Actions could be enum variants. They can be converted to turtle calls, and they 
 
 trait TurtleActionSerializable {
     fn to_api_call(&self) -> serde_json::Value;
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum RelativeDirection {
-    Forward,
-    Backward,
-    Right,
-    Left,
-    Down,
-    Up
 }
 
 

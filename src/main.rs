@@ -9,6 +9,7 @@ pub mod turtle_state;
 pub mod turtle_program;
 pub mod turtle_rotation;
 pub mod vec3;
+pub mod pathfind;
 use turtle_action::*;
 use turtle_program::*;
 use turtle_state::TurtleState;

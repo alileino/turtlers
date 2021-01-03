@@ -4,6 +4,8 @@ use serde_json;
 use serde_derive::{Deserialize, Serialize};
 extern crate rand;
 use rand::{seq::SliceRandom};
+use crate::pathfind;
+use crate::{turtle_rotation::RelativeDirection};
 
 pub trait TurtleProgram {
     fn next(&mut self) -> Result<TurtleAction>;
