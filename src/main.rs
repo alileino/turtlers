@@ -71,7 +71,7 @@ impl Turtle {
     fn update(&mut self, result: &TurtleActionReturn) {
         let action = self.last_action.as_ref().unwrap();
         self.state.update(action, result);
-        self.program.update(action, result);
+        self.program.update(&self.state, action, result);
     }
 }
 

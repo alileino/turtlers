@@ -1,4 +1,4 @@
-use crate::{turtle_action::*, turtle_state::LocationState};
+use crate::{turtle_action::*, turtle_state::*};
 use anyhow::{anyhow, Result};
 use serde_json;
 use serde_derive::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ pub trait TurtleProgram {
     fn next(&mut self) -> Result<TurtleAction>;
     fn progress(&self) -> (u32, u32); // Represents a fraction of progress
     fn name(&self) -> &str;
-    fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn);
+    fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn);
 }
 
 #[derive(Serialize, Deserialize)]
@@ -64,7 +64,7 @@ impl TurtleProgram for RotateProgram {
         // Ok(TurtleAction::Turn{direction: RelativeDirection::Left})
     }
 
-    fn update(&mut self, _action: &TurtleAction, _result: &TurtleActionReturn)  {
+    fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn)  {
         self.steps_remaining -= 1;
     }
 }
@@ -87,7 +87,7 @@ impl TurtleProgram for NoProgram {
         Err(anyhow!("Can't initialize NoProgram"))
     }
 
-    fn update(&mut self, _action: &TurtleAction, _result: &TurtleActionReturn) {
+    fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn) {
         todo!()
     }
 }
@@ -166,7 +166,7 @@ impl TurtleProgram for LocationTestProgram {
         "locationtest"
     }
 
-    fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
+    fn update(&mut self, _state: &TurtleState,  action: &TurtleAction, result: &TurtleActionReturn) {
         match action {
             TurtleAction::Move{..}|
             TurtleAction::Turn{..} => {
@@ -260,7 +260,7 @@ impl TurtleProgram for RandomProgram {
         "random"
     }
 
-    fn update(&mut self, _action: &TurtleAction, _result: &TurtleActionReturn) {
+    fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn) {
         // Don't care
     }
 }
