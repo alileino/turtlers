@@ -72,6 +72,16 @@ impl AxisDirection {
     pub const AD_YP: Vec3<i32> = Vec3::<i32>(0,1,0);
     pub const AD_YM: Vec3<i32> = Vec3::<i32>(0,-1,0);
 
+    pub fn from(unit_vec: &Coord) -> Self {
+        match unit_vec {
+            &AxisDirection::AD_XP => AxisDirection::Xp,
+            &AxisDirection::AD_XM => AxisDirection::Xm,
+            &AxisDirection::AD_ZP => AxisDirection::Zp,
+            &AxisDirection::AD_ZM => AxisDirection::Zm,
+            _ => panic!()
+        }
+    }
+
     pub fn to_unit_vector(&self) -> Vec3<i32> {
         match self {
             AxisDirection::Xp => AxisDirection::AD_XP,

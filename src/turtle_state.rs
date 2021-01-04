@@ -12,8 +12,8 @@ use crate::{turtle_rotation::*};
 type Coord = Vec3::<i32>;
 
 pub struct TurtleState {
-    location: LocationState,
-    world: WorldState
+    pub location: LocationState,
+    pub world: WorldState
 }
 
 impl TurtleState {
@@ -249,7 +249,8 @@ pub enum LocationMode {
 pub struct LocationState {
     pub loc: Coord, // Relative location
     pub loc_absolute: Option<Coord>, // Absolute, requires two GPS measurements from different locations
-    direction: AxisDirection,
+    pub direction: AxisDirection,
+    pub direction_absolute: AxisDirection,
     pub location_precision: LocationMode
 }
 
@@ -258,7 +259,8 @@ impl LocationState {
     pub fn new() -> Self {
         LocationState {
             loc: Vec3::zero(), 
-            direction: LocationState::DEFAULT_DIRECTION, 
+            direction: LocationState::DEFAULT_DIRECTION,
+            direction_absolute: LocationState::DEFAULT_DIRECTION,
             loc_absolute: None,
             location_precision: LocationMode::Relative(None)
         }
@@ -296,6 +298,7 @@ impl LocationState {
             let loc_wrot = rot.apply_to(&self.loc);
             let loc_woffset = &loc_wrot + base;
             self.loc_absolute = Some(loc_woffset);
+            self.direction_absolute = AxisDirection::from(&rot.apply_to(&self.direction.to_unit_vector()));
         }
     }
 
