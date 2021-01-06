@@ -1,22 +1,22 @@
-use std::ops::{Index, AddAssign, SubAssign, Add, Sub, Neg};
+use std::ops::{Index, AddAssign, SubAssign, Add, Sub, Neg, Mul};
 use serde_derive::{Deserialize, Serialize};
 
 
 pub trait Vec3T<T>:
-    Sub<Output=T>+Add<Output=T>+Copy+Neg<Output=T>+Default
+    Sub<Output=T>+Add<Output=T>+Copy+Neg<Output=T>+Default+Mul<Output=T>
 
 {
 }
 
 impl<T> Vec3T<T> for T where
-    T: Sub<Output=T>+Add<Output=T>+Copy+Neg<Output=T>+Default
+    T: Sub<Output=T>+Add<Output=T>+Copy+Neg<Output=T>+Default+Mul<Output=T>
 {
 }
 
 #[derive(PartialEq, Debug, Clone, Eq, Hash, Serialize, Deserialize)]
 pub struct Vec3<T>(pub T, pub T, pub T) where T: Vec3T<T>;
 
-impl<T> Vec3<T> where T: Vec3T<T> {
+impl<T> Vec3<T> where T: Vec3T<T> +  {
     pub fn from_array(arr: [T; 3]) -> Self {
         Self{0: arr[0], 1:arr[1], 2:arr[2]}
     }
@@ -27,7 +27,32 @@ impl<T> Vec3<T> where T: Vec3T<T> {
     pub fn zero() -> Self {
         Vec3::<T>(Default::default(), Default::default(), Default::default())
     }
+
+    pub fn dot(&self, rhs: &Self) -> T {
+        self.0*rhs.0 + self.1*rhs.1 + self.2*rhs.2
+    }
 }
+
+impl<T> Vec3<T> where T: Vec3T<T> + std::cmp::PartialOrd {
+    pub fn abs_sum(&self) -> T {
+        (if self.0 >= T::default() {
+            self.0
+        } else {
+            -self.0
+        }) +
+        (if self.1 >= T::default() {
+            self.1
+        } else {
+            -self.1
+        }) +
+        (if self.2 >= T::default() {
+            self.2
+        } else {
+            -self.2
+        })
+    }
+}
+
 
 impl<T> Index<usize> for Vec3<T> where T: Vec3T<T> {
     type Output = T;
