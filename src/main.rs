@@ -167,7 +167,7 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
                     let num = result["1"].as_u64().unwrap();
                     Ok(TurtleActionReturn::Number(num as u32))
                 },
-                TurtleAction::GpsLocate{timeout: _, debug} => {
+                TurtleAction::GpsLocate{timeout_ms: _, debug} => {
                     if *debug {
                         panic!();
                     } else {

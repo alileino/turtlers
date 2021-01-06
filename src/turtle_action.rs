@@ -33,7 +33,7 @@ impl TurtleApiCall {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Hash, Eq)]
 pub enum TurtleAction {
     Turn {direction: RelativeDirection},
     Move {direction: RelativeDirection},
@@ -51,7 +51,7 @@ pub enum TurtleAction {
     ItemDetail {slot: u8}, // this also has a second parameter, "detailed", which supposedly is slower.
     TransferTo {slot: u8},
     CompareTo {slot: u8},
-    GpsLocate {timeout: f64, debug: bool},
+    GpsLocate {timeout_ms: u32, debug: bool},
     Stop
 }
 
@@ -156,7 +156,7 @@ pub mod inventory {
 pub mod gps {
     use super::*;
     pub fn locate() -> TurtleAction {
-        TurtleAction::GpsLocate{timeout: 2f64, debug:false}
+        TurtleAction::GpsLocate{timeout_ms: 2000u32, debug:false}
     }
 }
 
@@ -179,8 +179,8 @@ impl TurtleAction {
         }
     }
 
-    fn gps_call(timeout: &f64, debug: &bool) -> TurtleApiCall {
-        TurtleApiCall::new_wargs("gps.locate", Value::from(*timeout), Value::from(*debug))
+    fn gps_call(timeout_ms: &u32, debug: &bool) -> TurtleApiCall {
+        TurtleApiCall::new_wargs("gps.locate", Value::from((*timeout_ms as f64) / 1000f64), Value::from(*debug))
     }
     
     pub fn to_api_call(&self) -> TurtleApiCall {
@@ -226,7 +226,7 @@ impl TurtleAction {
             TurtleAction::TransferTo {slot } => TurtleAction::slot_call("transferTo", slot),
             TurtleAction::CompareTo {slot } => TurtleAction::slot_call("compareTo", slot),
             TurtleAction::Stop => TurtleApiCall::new("stop"),
-            TurtleAction::GpsLocate {timeout, debug} => TurtleAction::gps_call(timeout, debug)
+            TurtleAction::GpsLocate {timeout_ms, debug} => TurtleAction::gps_call(timeout_ms, debug)
         }
     }
 }
