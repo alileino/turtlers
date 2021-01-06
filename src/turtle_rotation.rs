@@ -2,7 +2,7 @@ use crate::{vec3::Vec3};
 type Coord = Vec3::<i32>;
 
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum RelativeDirection {
     Forward,
     Backward,
@@ -26,13 +26,19 @@ Zm      Zp
     Xm
 
 */
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Rotation {
     Y0,
     Y90,
     Y180,
     Y270
 }
+
+/*
+    const ROT_0: (Coord, Coord, Coord) = (Vec3::<i32>(1,0,0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,1));
+    const ROT_Y90: (Coord, Coord, Coord) = (Vec3::<i32>(0,0,-1), Vec3::<i32>(0,1,0), Vec3::<i32>(1,0,0));
+    const ROT_Y180: (Coord, Coord, Coord) = (Vec3::<i32>(-1, 0, 0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,-1));
+    const ROT_Y270: (Coord, Coord, Coord) = (Vec3::<i32>(0, 0, 1), Vec3::<i32>(0,1,0), Vec3::<i32>(-1,0,0)); */
 
 impl Rotation {
     
@@ -56,12 +62,16 @@ impl Rotation {
 
     pub fn find_rotation(src: &Coord, dst: &Coord) -> Self {
         for rot in Rotation::ALL.iter() {
-            if &rot.apply_to(src) == dst {
+            let rotated = &rot.apply_to(src);
+            if  rotated.0 == dst.0 && rotated.2 == dst.2 {
                 return rot.clone();
             }
         }
-        panic!()
+        panic!(format!("Could not rotate {:?} to {:?}", src, dst))
     }
+
+
+
 }
 
 impl AxisDirection {
@@ -109,6 +119,22 @@ impl AxisDirection {
         }
     }
 
+    pub fn dot(lhs: &AxisDirection, rhs: &AxisDirection) -> Rotation {
+        let lhs_vec = lhs.to_unit_vector();
+        let rhs_vec = rhs.to_unit_vector();
+        if lhs==rhs {
+            Rotation::Y0
+        } else if lhs_vec == -rhs_vec {
+            Rotation::Y180
+        } else if &lhs.rotate_left() == rhs {
+            Rotation::Y270
+        } else if &lhs.rotate_right() == rhs {
+            Rotation::Y90
+        } else {
+            panic!()
+        }
+    }
+
 }
 
 pub fn get_dest_axisdirection(cur_axis: &AxisDirection, move_direction: &RelativeDirection) -> Coord {
@@ -128,7 +154,6 @@ mod tests {
 
     #[test]
     fn test_axis_dot() {
-        let lhs = AxisDirection::Xm;
         let cases = [
             (AxisDirection::Xm, AxisDirection::Xm, Rotation::Y0),
             (AxisDirection::Xp, AxisDirection::Zm, Rotation::Y270),

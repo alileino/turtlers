@@ -1,5 +1,6 @@
-use crate::{turtle_action::*, turtle_state::*};
+use crate::{turtle_action::*, turtle_rotation::AxisDirection, turtle_state::*, vec3::Vec3};
 use anyhow::{anyhow, Result};
+use pathfind::RTAStar;
 use serde_json;
 use serde_derive::{Deserialize, Serialize};
 extern crate rand;
@@ -99,8 +100,9 @@ pub fn create_program(msg: &StartProgramMsg ) -> Result<Box<dyn TurtleProgram>> 
         match program_name.as_str() {
             "rotate" => Box::new(RotateProgram::new(args)?),
             "no" => Box::new(NoProgram{}),
-            "random" => Box::new(RandomProgram::new(false, false)),
+            "random" => Box::new(RandomProgram::new(false, false, false)),
             "locatetest" => Box::new(LocationTestProgram::new()),
+            "pathfindtest" => Box::new(PathfindingTestProgram::new()),
             program => return Err(anyhow!("Invalid program: {}", program))
     };
     Ok(boxed)
@@ -131,11 +133,59 @@ pub struct TurtleResponseMsg {
 //     Ok(result)
 // }
 
+#[derive(Debug)]
+pub struct PathfindingTestProgram {
+    random: RandomProgram,
+    gps_initialized: bool,
+    pathfinder: Option<RTAStar>
+}
+
+impl PathfindingTestProgram {
+    pub fn new() -> Self {
+        let random = RandomProgram::new(false,true, true);
+        PathfindingTestProgram{random:random, gps_initialized:false, pathfinder: None}
+    }
+}
+
+impl TurtleProgram for PathfindingTestProgram {
+    fn next(&mut self) -> Result<TurtleAction> {
+        if self.pathfinder.is_some() {
+
+            self.pathfinder.as_ref().unwrap().next()
+        } else {
+            self.random.next()
+        }
+    }
+
+    fn progress(&self) -> (u32, u32) {
+        (0,1)
+    }
+
+    fn name(&self) -> &str {
+        "pathfindtest"
+    }
+
+    fn update(&mut self, state: &TurtleState,  _action: &TurtleAction, _result: &TurtleActionReturn) {
+        self.gps_initialized = state.location.loc_absolute.is_some();
+        
+        if self.gps_initialized {
+            if self.pathfinder.is_none() {
+                println!("Pathfinder initialized!");
+                let goal = Vec3::<i32>(223, 130, -253);
+                self.pathfinder = Some(RTAStar::new(goal, AxisDirection::Xm));
+            }
+
+            self.pathfinder.as_mut().unwrap().update(&state);
+        }
+        
+        
+    }
+}
 
 
 #[derive(Debug)]
 pub struct LocationTestProgram {
-    state: LocationState,
+    // state: LocationState,
     gps_initialized: bool,
     random: RandomProgram,
     cur_step: u32
@@ -143,15 +193,15 @@ pub struct LocationTestProgram {
 
 impl LocationTestProgram {
     pub fn new() -> Self {
-        let random = RandomProgram::new(false,true);
-        let state = LocationState::new();
-        LocationTestProgram{state: state, random:random, gps_initialized:false, cur_step:0}
+        let random = RandomProgram::new(false,true, true);
+        // let state = LocationState::new();
+        LocationTestProgram{random:random, gps_initialized:false, cur_step:0}
     }
 }
 
 impl TurtleProgram for LocationTestProgram {
     fn next(&mut self) -> Result<TurtleAction> {
-        if self.cur_step % 2 == 0 {
+        if self.cur_step % 7 == 3 {
             Ok(gps::locate())
         } else {
             self.random.next()
@@ -163,20 +213,21 @@ impl TurtleProgram for LocationTestProgram {
     }
 
     fn name(&self) -> &str {
-        "locationtest"
+        "locatetest"
     }
 
-    fn update(&mut self, _state: &TurtleState,  action: &TurtleAction, result: &TurtleActionReturn) {
+    fn update(&mut self, state: &TurtleState,  action: &TurtleAction, result: &TurtleActionReturn) {
+        println!("{:?}", state.location.loc_absolute);
         match action {
             TurtleAction::Move{..}|
             TurtleAction::Turn{..} => {
-                self.state.update(action, result);
+                // self.state.update(action, result);
             },
             TurtleAction::GpsLocate{..} => {
                 if let TurtleActionReturn::Coordinate(_) = &*result {
-                    self.state.update(action, result);
+                    // self.state.update(action, result);
                 } else {
-                    if self.state.loc_absolute.is_none() {
+                    if state.location.loc_absolute.is_none() {
                         // Execution was started out of gps range
                         panic!("Could not determine gps");
                     } else {
@@ -197,10 +248,11 @@ impl TurtleProgram for LocationTestProgram {
 pub struct RandomProgram {
     actions: [TurtleAction;67],
     drop: bool,
-    only_move: bool
+    only_move: bool,
+    horizontal: bool
 }
 impl RandomProgram {
-    pub fn new(enable_drop: bool, only_move: bool) -> Self {
+    pub fn new(enable_drop: bool, only_move: bool, horizontal: bool) -> Self {
         let actions = [
             turn::left(), turn::right(),
             go::forward(), go::backward(),  go::up(), go::down(), 
@@ -223,7 +275,7 @@ impl RandomProgram {
             inventory::transfer_to(1), inventory::transfer_to(2),inventory::transfer_to(3), inventory::transfer_to(16),
             gps::locate()
             ];
-        RandomProgram{actions:actions, drop:enable_drop, only_move: only_move}
+        RandomProgram{actions:actions, drop:enable_drop, only_move: only_move, horizontal: horizontal}
     }
 }
 
@@ -233,11 +285,13 @@ impl TurtleProgram for RandomProgram {
         let mut rng = rand::thread_rng();
 
         let action = self.actions.choose(&mut rng).unwrap();
-
+        
         if self.only_move {
             match action {
+                TurtleAction::Move{direction} if self.horizontal && matches!(direction, RelativeDirection::Up|RelativeDirection::Down) => self.next(),
                 TurtleAction::Move{..}|
-                TurtleAction::Turn{..} => Ok(action.clone()),
+                TurtleAction::Turn{..}|
+                TurtleAction::GpsLocate{..} => Ok(action.clone()),
                 _ => self.next()
             }
         } else {
