@@ -166,4 +166,11 @@ mod tests {
         assert_eq!(Vec3::<i32>(3,5,7), result);
     }
 
+    #[test]
+    fn test_absum() {
+        let vec = Vec3(-1, 3, -9);
+        let sum = vec.abs_sum();
+        assert_eq!(13, sum);
+    }
+
 }

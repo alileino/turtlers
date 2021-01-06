@@ -17,7 +17,9 @@ pub enum AxisDirection {
     Xp,
     Xm,
     Zp,
-    Zm
+    Zm,
+    Yp,
+    Ym
 }
 
 /*
@@ -82,6 +84,8 @@ impl AxisDirection {
     pub const AD_YP: Vec3<i32> = Vec3::<i32>(0,1,0);
     pub const AD_YM: Vec3<i32> = Vec3::<i32>(0,-1,0);
 
+    pub const ALL: [AxisDirection;6] = [AxisDirection::Xp, AxisDirection::Zp, AxisDirection::Xm, AxisDirection::Zm, AxisDirection::Yp, AxisDirection::Ym];
+
     pub fn from(unit_vec: &Coord) -> Self {
         match unit_vec {
             &AxisDirection::AD_XP => AxisDirection::Xp,
@@ -97,7 +101,9 @@ impl AxisDirection {
             AxisDirection::Xp => AxisDirection::AD_XP,
             AxisDirection::Xm => AxisDirection::AD_XM,
             AxisDirection::Zp => AxisDirection::AD_ZP,
-            AxisDirection::Zm => AxisDirection::AD_ZM
+            AxisDirection::Zm => AxisDirection::AD_ZM,
+            AxisDirection::Yp => AxisDirection::AD_YP,
+            AxisDirection::Ym => AxisDirection::AD_YM
         }
     }
 
@@ -106,7 +112,8 @@ impl AxisDirection {
             AxisDirection::Xp => AxisDirection::Zp,
             AxisDirection::Zp => AxisDirection::Xm,
             AxisDirection::Xm => AxisDirection::Zm,
-            AxisDirection::Zm => AxisDirection::Xp
+            AxisDirection::Zm => AxisDirection::Xp,
+            _ => panic!() // implement as identity if needed
         }
     }
 
@@ -115,7 +122,8 @@ impl AxisDirection {
             AxisDirection::Xp => AxisDirection::Zm,
             AxisDirection::Zm => AxisDirection::Xm,
             AxisDirection::Xm => AxisDirection::Zp,
-            AxisDirection::Zp => AxisDirection::Xp
+            AxisDirection::Zp => AxisDirection::Xp,
+            _ => panic!() // implement as identity if needed
         }
     }
 

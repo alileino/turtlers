@@ -1,9 +1,8 @@
 
-use std::{cmp::min, collections::{HashMap}, thread};
-use crate::{turtle_action::{TurtleAction, gps}, vec3::Vec3};
+use std::{cmp::min, collections::{HashMap}, ops::Index};
+use crate::{turtle_action::{TurtleAction, gps}, vec3::*};
 use crate::{turtle_rotation::*};
 use crate::{turtle_state::*};
-use std::time::Duration;
 use anyhow::{anyhow, Result};
 
 #[derive(PartialEq, Hash, Debug, Eq)]
@@ -15,7 +14,38 @@ struct Node {
 
 
 
-fn generate_neighbors(node: &Node) -> Vec<(Node, TurtleAction)> {
+fn generate_neighbours_at(start_node: &Node, depth: usize) -> Vec<(Node, TurtleAction)> {
+    let mut next_open = vec![start_node];
+    for i in 0..depth {
+        let mut result = vec![];
+        for node in next_open {
+            let turn_left = node.dir.rotate_left();
+            let turn_right = node.dir.rotate_right();
+            result.push(
+                (Node{loc: node.loc.clone(), dir: turn_left}, 
+                TurtleAction::Turn{direction:RelativeDirection::Left})
+            );
+            result.push(
+                (Node{loc: node.loc.clone(), dir: turn_right},
+                TurtleAction::Turn{direction:RelativeDirection::Right})
+            );
+            for rel_dir in &[RelativeDirection::Forward, RelativeDirection::Backward, RelativeDirection::Up, RelativeDirection::Down] {
+                let loc_dir = get_dest_axisdirection(&node.dir, rel_dir);
+                let loc = &node.loc + &loc_dir;
+                result.push(
+                    (Node{loc:loc, dir:node.dir.clone()},
+                    TurtleAction::Move{direction:rel_dir.to_owned()})
+                );
+            }
+        }
+        next_open = result;
+    }
+
+    next_open
+}
+
+fn generate_neighbors(node: &Node, depth: usize) -> Vec<(Node, TurtleAction)> {
+    
     let mut result = vec![];
     let turn_left = node.dir.rotate_left();
     let turn_right = node.dir.rotate_right();
@@ -64,7 +94,7 @@ fn generate_neighbors(node: &Node) -> Vec<(Node, TurtleAction)> {
 
 // }
 
-fn dist_heuristic(state: &WorldState, start: &Node, end: &Node, can_dig: bool, _cur_cost: u64) -> u64 {
+fn dist_heuristic(state: &WorldState, start: &Node, end: &Node, can_dig: bool, cur_cost: u64) -> u64 {
     let current = start.clone();
     let block = state.state.get(&current.loc).unwrap_or( &Block::Unknown);
     if !can_dig && block == &Block::Block {
@@ -99,7 +129,44 @@ fn dist_heuristic(state: &WorldState, start: &Node, end: &Node, can_dig: bool, _
     }; // AT LEAST this amount of rotation. However:
 
     let cost = (distance_needed.abs_sum() + rotation_cost) as u64;
-    cost
+    cur_cost + cost
+}
+
+fn blocking_path(state: &WorldState, start: &Node, end: &Node) -> u64 {
+    let mut current = start.loc.clone();
+    let mut dist_needed = &end.loc-&start.loc;
+
+
+    
+    while dist_needed != Vec3::zero() {
+        // for i in 0..3usize {
+        //     if dist_needed.index(i) != &0 {
+
+        //     }
+        // }
+        let mut non_block_found = false;
+        for axis in &AxisDirection::ALL {
+            let dir = axis.to_unit_vector();
+            let dot = dist_needed.dot(&dir);
+            if dot > 0 {
+                let dest = &current + &dir;
+                if let Some(block) = state.state.get(&dest) {
+                    
+                    continue;
+                }
+                non_block_found = true;
+                current = dest;
+                dist_needed = &end.loc-&current;
+                break;
+            }
+            
+            
+        }
+        if !non_block_found {
+            return 1;
+        }
+    }
+    0
 }
 
 
@@ -123,6 +190,28 @@ impl RTAStar {
         }
     }
 
+    fn select_successor(&self, nodes: &Vec<(Node, TurtleAction)>, costs: &Vec<u64>) -> usize {
+        let min_cost = costs.iter().min().unwrap();
+        let nodes_min_cost: Vec<usize> = (0..costs.len()).filter(|i| &costs[*i] == min_cost).collect();
+        let nodes_not_turning: Vec<usize> = nodes_min_cost.iter().map(|i| *i).filter(|i| matches!((&nodes[*i]).1, TurtleAction::Move{..})).collect();
+        if nodes_not_turning.len() > 0 {
+            nodes_not_turning[0]
+        } else {
+            nodes_min_cost[0]
+        }
+    }
+
+    fn get_second_cost(&self, costs: &Vec<u64>) -> u64 {
+        let min_cost = costs.iter().min().unwrap();
+        let nodes_min_cost: Vec<usize> = (0..costs.len()).filter(|i| &costs[*i] == min_cost).collect();
+        if nodes_min_cost.len() > 1 {
+            *min_cost
+        } else {
+            let larger_than_min= costs.iter().filter(|f| *f > &min_cost).min();
+            *larger_than_min.unwrap_or(min_cost)
+        }
+    }
+
     fn next_node(&mut self, state: &TurtleState) -> TurtleAction { 
         let loc = state.location.loc_absolute.as_ref().unwrap();
         let dir = &state.location.direction_absolute;
@@ -131,8 +220,10 @@ impl RTAStar {
         if cur_node == self.goal {
             return TurtleAction::Stop;
         }
-        let mut successors = generate_neighbors(&cur_node);
+        const SEARCH_DEPTH: usize = 3;
+        let mut successors = generate_neighbors(&cur_node, SEARCH_DEPTH);
         let mut costs: Vec<u64> = vec![];
+        
         for node in &successors {
             let cost = match self.h.get(&node.0) {
                 Some(h) => {
@@ -140,23 +231,21 @@ impl RTAStar {
                 },
                 None => {
                     1+dist_heuristic(&state.world, &node.0, &self.goal, false, 0)
+                     +blocking_path(&state.world, &node.0, &self.goal)
                 }
             };
             println!("{:?} {:?} {:?}", node.1, cost, self.h.get(&node.0).is_some());
             costs.push(cost);
             
         }
-        
-        // println!("Successors: {:?} Costs: {:?}", successors, costs);
         let min_cost = costs.iter().min().unwrap();
-        let larger_than_min= costs.iter().filter(|f| *f > &min_cost).min();
-        let min_target =  larger_than_min.unwrap_or(min_cost);
-        let index = costs.iter().position(|f| f==min_cost).unwrap();
+        let index = self.select_successor(&successors, &costs);
         let best_succ = successors.remove(index);
-        println!("Was {:?} target {:?}, cost_there {:?} cost_here {:?}", cur_node, best_succ, min_cost, min_target);
+        let second_cost = self.get_second_cost(&costs);
+        // println!("Was {:?} target {:?}, cost_there {:?} cost_here {:?}", cur_node, best_succ, min_cost, second_cost);
         // println!("Costs: {:?}", self.h);
 
-        self.h.insert(cur_node, *min_cost);
+        self.h.insert(cur_node, second_cost);
         // thread::sleep(Duration::from_millis(7500));
         best_succ.1
         
