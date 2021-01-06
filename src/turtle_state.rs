@@ -60,7 +60,7 @@ impl Block {
 
 
 pub struct WorldState {
-    state: HashMap<Coord, Block>,
+    pub state: HashMap<Coord, Block>,
     id: String
 }
 
@@ -145,6 +145,7 @@ impl WorldState {
     }
 
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn, loc: &LocationState) {
+        
         if let Some(loc_absolute) = loc.loc_absolute.clone() {
             match (action, result) {
                 (TurtleAction::Move{direction}, TurtleActionReturn::Success) 
@@ -266,26 +267,35 @@ impl LocationState {
         }
     }
 
-    fn update_gps(&mut self, loc: &Vec3<i32>) {
+    fn update_gps(&mut self, new_absolute: &Vec3<i32>) {
 
         match &self.location_precision {
             LocationMode::Relative(None) => {
-                self.location_precision = LocationMode::Relative(Some((self.loc.clone(), loc.clone())));
+                self.location_precision = LocationMode::Relative(Some((self.loc.clone(), new_absolute.clone())));
             },
-            LocationMode::Relative(Some(loc1)) => {
-                let rel_diff = &self.loc-&loc1.0; // cur relative - old relative
+            LocationMode::Relative(Some(old_loc)) => {
+                let (old_rel, old_abs) = old_loc;
+                let rel_diff = &self.loc-&old_rel; // cur relative - old relative
                 if rel_diff.0 == 0 && rel_diff.2 == 0 { // Can't determine rotation with no x or z offsets
                     return;
                 }
-                let abs_diff = loc-&loc1.1; // cur absolute - old absolute
+                let abs_diff = new_absolute-&old_abs; // cur absolute - old absolute
                 let rotation = Rotation::find_rotation(&rel_diff, &abs_diff);
-                println!("Found rotation {:?} and offset {:?}", rotation, loc1.1);
-                self.location_precision = LocationMode::Absolute((loc1.1.to_owned(), rotation));
+                let new_offset = old_abs - &rotation.apply_to(old_rel);
+                println!("Found rotation {:?} and offset {:?} from {:?} arriving at {:?}", rotation, new_offset, self.loc, new_absolute);
+                println!("Relative coords: old: {:?} cur: {:?} diff: {:?}", old_loc.0, self.loc, rel_diff);
+                println!("Absolute coords: old: {:?} cur: {:?} diff: {:?}", old_loc.1, new_absolute, abs_diff);
+                self.location_precision = LocationMode::Absolute((new_offset, rotation));
+
+                self.update_absolute_location();
+                self.update_gps(&new_absolute);
 
             },
             LocationMode::Absolute(_) => {
-                if self.loc_absolute.as_ref().unwrap()!= loc {
-                    panic!("New gps measurement {:?} differs from calculated value of {:?}", loc, self.loc_absolute);
+                if self.loc_absolute.as_ref().unwrap() != new_absolute {
+                    panic!("New gps measurement {:?} differs from calculated value of {:?}", new_absolute, self.loc_absolute);
+                } else {
+                    // println!("GPS {:?} == {:?}", new_absolute, self.loc_absolute.as_ref().unwrap());
                 }
             }
         }
