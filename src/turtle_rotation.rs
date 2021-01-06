@@ -121,3 +121,25 @@ pub fn get_dest_axisdirection(cur_axis: &AxisDirection, move_direction: &Relativ
         _ => panic!()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_axis_dot() {
+        let lhs = AxisDirection::Xm;
+        let cases = [
+            (AxisDirection::Xm, AxisDirection::Xm, Rotation::Y0),
+            (AxisDirection::Xp, AxisDirection::Zm, Rotation::Y270),
+            (AxisDirection::Xp, AxisDirection::Xm, Rotation::Y180),
+            (AxisDirection::Xp, AxisDirection::Zp, Rotation::Y90)
+            
+            ];
+        for case in &cases {
+            let (lhs, rhs, rot) = case;            
+            let result = AxisDirection::dot(lhs, rhs);
+            assert_eq!(rot, &result);
+        }
+    }
+}
