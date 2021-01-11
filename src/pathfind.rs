@@ -1,5 +1,5 @@
 
-use std::{cmp::min, collections::{HashMap}, ops::Index};
+use std::{cmp::min, collections::{HashMap}};
 use crate::{turtle_action::{TurtleAction, gps}, vec3::*};
 use crate::{turtle_rotation::*};
 use crate::{turtle_state::*};
@@ -14,37 +14,38 @@ struct Node {
 
 
 
-fn generate_neighbours_at(start_node: &Node, depth: usize) -> Vec<(Node, TurtleAction)> {
-    let mut next_open = vec![start_node];
-    for i in 0..depth {
-        let mut result = vec![];
-        for node in next_open {
-            let turn_left = node.dir.rotate_left();
-            let turn_right = node.dir.rotate_right();
-            result.push(
-                (Node{loc: node.loc.clone(), dir: turn_left}, 
-                TurtleAction::Turn{direction:RelativeDirection::Left})
-            );
-            result.push(
-                (Node{loc: node.loc.clone(), dir: turn_right},
-                TurtleAction::Turn{direction:RelativeDirection::Right})
-            );
-            for rel_dir in &[RelativeDirection::Forward, RelativeDirection::Backward, RelativeDirection::Up, RelativeDirection::Down] {
-                let loc_dir = get_dest_axisdirection(&node.dir, rel_dir);
-                let loc = &node.loc + &loc_dir;
-                result.push(
-                    (Node{loc:loc, dir:node.dir.clone()},
-                    TurtleAction::Move{direction:rel_dir.to_owned()})
-                );
-            }
-        }
-        next_open = result;
-    }
+// fn generate_neighbours_at(start_node: &Node, depth: usize) -> Vec<(Node, TurtleAction)> {
+//     let mut next_open = vec![(start_node, )];
+//     for i in 0..depth {
+//         let mut result = vec![];
+//         for node in next_open {
+//             let turn_left = node.dir.rotate_left();
+//             let turn_right = node.dir.rotate_right();
+//             result.push(
+//                 (Node{loc: node.loc.clone(), dir: turn_left},
+//                 TurtleAction::Turn{direction:RelativeDirection::Left})
+//             );
+//             result.push(
+//                 (Node{loc: node.loc.clone(), dir: turn_right},
+//                 TurtleAction::Turn{direction:RelativeDirection::Right})
+//             );
+//
+//             for rel_dir in &[RelativeDirection::Forward, RelativeDirection::Backward, RelativeDirection::Up, RelativeDirection::Down] {
+//                 let loc_dir = get_dest_axisdirection(&node.dir, rel_dir);
+//                 let loc = &node.loc + &loc_dir;
+//                 result.push(
+//                     (Node{loc:loc, dir:node.dir.clone()},
+//                     TurtleAction::Move{direction:rel_dir.to_owned()})
+//                 );
+//             }
+//         }
+//         next_open = result;
+//     }
+//
+//     next_open[0]
+// }
 
-    next_open
-}
-
-fn generate_neighbors(node: &Node, depth: usize) -> Vec<(Node, TurtleAction)> {
+fn generate_neighbors(node: &Node) -> Vec<(Node, TurtleAction)> {
     
     let mut result = vec![];
     let turn_left = node.dir.rotate_left();
@@ -150,7 +151,7 @@ fn blocking_path(state: &WorldState, start: &Node, end: &Node) -> u64 {
             let dot = dist_needed.dot(&dir);
             if dot > 0 {
                 let dest = &current + &dir;
-                if let Some(block) = state.state.get(&dest) {
+                if let Some(_block) = state.state.get(&dest) {
                     
                     continue;
                 }
@@ -220,8 +221,8 @@ impl RTAStar {
         if cur_node == self.goal {
             return TurtleAction::Stop;
         }
-        const SEARCH_DEPTH: usize = 3;
-        let mut successors = generate_neighbors(&cur_node, SEARCH_DEPTH);
+        // const SEARCH_DEPTH: usize = 3;
+        let mut successors = generate_neighbors(&cur_node);
         let mut costs: Vec<u64> = vec![];
         
         for node in &successors {
@@ -238,7 +239,6 @@ impl RTAStar {
             costs.push(cost);
             
         }
-        let min_cost = costs.iter().min().unwrap();
         let index = self.select_successor(&successors, &costs);
         let best_succ = successors.remove(index);
         let second_cost = self.get_second_cost(&costs);

@@ -9,10 +9,11 @@ pub mod turtle_state;
 pub mod turtle_program;
 pub mod turtle_rotation;
 pub mod vec3;
+pub mod turtle;
 pub mod pathfind;
 use turtle_action::*;
 use turtle_program::*;
-use turtle_state::TurtleState;
+use turtle::*;
 use vec3::Vec3;
 use std::{net::{TcpListener, TcpStream}, thread::{self, spawn}, time};
 
@@ -26,54 +27,6 @@ fn must_not_block<Role: HandshakeRole>(err: HandshakeError<Role>) -> tung::Error
     }
 }
 
-pub struct Turtle {
-    id: String,
-    program: Box<dyn TurtleProgram>,
-    last_action: Option<TurtleAction>,
-    state: TurtleState
-}
-
-enum ProgramState {
-    Finished,
-    _Waiting(f64), // waiting for turtle to report back
-    HasInstructions(f64) // has instructions that can be delivered to turtle
-}
-
-impl Turtle {
-    pub fn new(name: String) -> Self {
-        Turtle {
-            id: name.clone(), 
-            program: Box::new(NoProgram{}),
-            last_action: None,
-            state: TurtleState::new(name)
-        }
-    }
-
-    fn program_state(&self) -> ProgramState {
-        let progress = self.program.progress();
-        if progress.0 == progress.1 {
-            return ProgramState::Finished;
-        }
-        let progress_f = (progress.1 as f64)/(progress.0 as f64);
-        ProgramState::HasInstructions(progress_f)
-    }
-
-    fn set_program(&mut self, program: Box<dyn TurtleProgram>) {
-        self.program = program;
-        println!("Set program to {}", self.program.name());
-    }
-
-    fn record(&mut self, action: TurtleAction) {
-        println!("{:?}", action);
-        self.last_action = Some(action);
-    }
-
-    fn update(&mut self, result: &TurtleActionReturn) {
-        let action = self.last_action.as_ref().unwrap();
-        self.state.update(action, result);
-        self.program.update(&self.state, action, result);
-    }
-}
 
 #[derive(Serialize, Deserialize)]
 struct InitMsg {
@@ -108,85 +61,82 @@ fn turtle_ok(socket: &mut WebSocket<TcpStream>) -> Result<()> {
 
 
 fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<TurtleActionReturn> {
-    let last_action = &turtle.last_action;
+    let last_action = turtle.last_action.as_ref().unwrap(); // If None, our program is initializing out of order
     let result = &response.result;
-    match last_action {
-        Some(action) => {
-            match action {
-                TurtleAction::Move{..}|
-                TurtleAction::Turn{..}|
-                TurtleAction::Place{..}|
-                TurtleAction::Dig{..}|
-                TurtleAction::Attack{..}|
-                TurtleAction::Suck{..}|
-                TurtleAction::Drop{..}|
-                TurtleAction::TransferTo{..} => {
-                    let success = result["1"].as_bool().unwrap();
-                    if success {
-                        Ok(TurtleActionReturn::Success)
-                    } else {
-                        let reason = parse_failure_reason(result["2"].as_str().unwrap());
-                        
-                        Ok(TurtleActionReturn::Failure(reason))
-                    }
-                },
-                TurtleAction::Inspect{..} => {
-                    let success = result["1"].as_bool().unwrap();
-                    if success {
-                        let inspect_result = &result["2"];
-                        let block_name = inspect_result["name"].to_string();
-                        let state_table = inspect_result["state"].as_object();
-                        let final_table = match state_table {
-                            Some(x) => x.to_owned(),
-                            None => serde_json::Map::new()
-                        };
-                        
-                        Ok(TurtleActionReturn::InspectSuccess(block_name, final_table))
-                        
-                    } else {
-                        let reason = parse_failure_reason(result["2"].as_str().unwrap());
-                        Ok(TurtleActionReturn::Failure(reason))
-                    }
-                },
-                TurtleAction::ItemDetail{..} => {
-                    let detail_result = result["1"].as_object();
-                    match detail_result {
-                        Some(x) => Ok(TurtleActionReturn::DetailSuccess(x.to_owned())),
-                        None => Ok(TurtleActionReturn::Failure(FailureReason::SlotIsEmpty))
-                    }
-                },
-                TurtleAction::Detect{..}|
-                TurtleAction::Compare{..}|
-                TurtleAction::Select{..}|
-                TurtleAction::CompareTo{..} => {
-                    let is_block = result["1"].as_bool().unwrap();
-                    Ok(TurtleActionReturn::Boolean(is_block))
-                },
-                TurtleAction::ItemCount{..}|
-                TurtleAction::ItemSpace{..} => {
-                    let num = result["1"].as_u64().unwrap();
-                    Ok(TurtleActionReturn::Number(num as u32))
-                },
-                TurtleAction::GpsLocate{timeout_ms: _, debug} => {
-                    if *debug {
-                        panic!();
-                    } else {
-                        if result["n"].as_u64().unwrap() == 1 {
-                            Ok(TurtleActionReturn::Failure(FailureReason::GpsLocateFailure))
-                        } else {
-                            let x = result["1"].as_i64().unwrap();
-                            let y = result["2"].as_i64().unwrap();
-                            let z = result["3"].as_i64().unwrap();
-                            Ok(TurtleActionReturn::Coordinate(Vec3::<i32>(x as i32, y as i32, z as i32)))
-                        }
-                    }
-                }
 
-                _ => panic!()
+    match last_action {
+        TurtleAction::Move{..}|
+        TurtleAction::Turn{..}|
+        TurtleAction::Place{..}|
+        TurtleAction::Dig{..}|
+        TurtleAction::Attack{..}|
+        TurtleAction::Suck{..}|
+        TurtleAction::Drop{..}|
+        TurtleAction::TransferTo{..} => {
+            let success = result["1"].as_bool().unwrap();
+            if success {
+                Ok(TurtleActionReturn::Success)
+            } else {
+                let reason = parse_failure_reason(result["2"].as_str().unwrap());
+
+                Ok(TurtleActionReturn::Failure(reason))
             }
         },
-        None => panic!()
+        TurtleAction::Inspect{..} => {
+            let success = result["1"].as_bool().unwrap();
+            if success {
+                let inspect_result = &result["2"];
+                let block_name = inspect_result["name"].to_string();
+                let state_table = inspect_result["state"].as_object();
+                let final_table = match state_table {
+                    Some(x) => x.to_owned(),
+                    None => serde_json::Map::new()
+                };
+
+                Ok(TurtleActionReturn::InspectSuccess(block_name, final_table))
+
+            } else {
+                let reason = parse_failure_reason(result["2"].as_str().unwrap());
+                Ok(TurtleActionReturn::Failure(reason))
+            }
+        },
+        TurtleAction::ItemDetail{..} => {
+            let detail_result = result["1"].as_object();
+            match detail_result {
+                Some(x) => Ok(TurtleActionReturn::DetailSuccess(x.to_owned())),
+                None => Ok(TurtleActionReturn::Failure(FailureReason::SlotIsEmpty))
+            }
+        },
+        TurtleAction::Detect{..}|
+        TurtleAction::Compare{..}|
+        TurtleAction::Select{..}|
+        TurtleAction::CompareTo{..} => {
+            let is_block = result["1"].as_bool().unwrap();
+            Ok(TurtleActionReturn::Boolean(is_block))
+        },
+        TurtleAction::ItemCount{..}|
+        TurtleAction::ItemSpace{..} => {
+            let num = result["1"].as_u64().unwrap();
+            Ok(TurtleActionReturn::Number(num as u32))
+        },
+        TurtleAction::GpsLocate{timeout_ms: _, debug} => {
+            if *debug {
+                panic!();
+            } else {
+                if result["n"].as_u64().unwrap() == 1 {
+                    Ok(TurtleActionReturn::Failure(FailureReason::GpsLocateFailure))
+                } else {
+                    let x = result["1"].as_i64().unwrap();
+                    let y = result["2"].as_i64().unwrap();
+                    let z = result["3"].as_i64().unwrap();
+                    Ok(TurtleActionReturn::Coordinate(Vec3::<i32>(x as i32, y as i32, z as i32)))
+                }
+            }
+        }
+
+        _ => panic!()
     }
+
 }
 
 
@@ -194,8 +144,6 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
 fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, be more specific
     // let msg_value: serde_json::Value = serde_json::from_str(msg)?;
     let msg_wtype: UnknownMsg = serde_json::from_str(msg)?;
-
-    
 
     match msg_wtype.msgtype.as_str() {
         "start" => {
@@ -223,16 +171,6 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
     
     turtle.record(action);
     Ok(action_str)
-    // let program = create_program(&msg_value)?;
-    
-
-
-    // let command: String = msg_value["command"].to_string();
-    
-    // match command {
-
-    //     _ => Err(anyhow!("Invalid command: {}", command))
-    // }
 }
 
 fn do_client_stuff(mut socket: &mut WebSocket<TcpStream>, initialization_msg: &str) -> Result<()> {
