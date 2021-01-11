@@ -1,7 +1,6 @@
 
 use tungstenite::WebSocket;
-#[allow(unused_imports)]
-use anyhow::{anyhow, Result, Error};
+use anyhow::{anyhow, Result};
 use serde_json::{self};
 use serde_derive::{Deserialize, Serialize};
 pub mod turtle_action;
@@ -140,9 +139,8 @@ fn parse_response(turtle: &Turtle, response: &TurtleResponseMsg) -> Result<Turtl
 }
 
 
+fn execute_message(turtle: &mut Turtle, msg: &str) -> Result<()> { // later, be more specific
 
-fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, be more specific
-    // let msg_value: serde_json::Value = serde_json::from_str(msg)?;
     let msg_wtype: UnknownMsg = serde_json::from_str(msg)?;
 
     match msg_wtype.msgtype.as_str() {
@@ -151,7 +149,6 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
             let create_program_msg: StartProgramMsg = serde_json::from_str(msg)?;
             let program = create_program(&create_program_msg)?;
             turtle.set_program(program);
-
         },
         "response" => {
             let resp_msg: TurtleResponseMsg = serde_json::from_str(&msg)?;
@@ -161,19 +158,17 @@ fn execute_message(turtle: &mut Turtle, msg: &str)-> Result<String> { // later, 
         },
         x => return Err(anyhow!("Invalid msgtype received when program is finished: {}", x))
     };
-    
-    let action = match turtle.program_state() {
-        ProgramState::HasInstructions(_) => turtle.program.next()?,
-        ProgramState::Finished => TurtleAction::Stop,
-        _ => panic!()
-    };
+    Ok(())
+}
+
+fn next_response(turtle: &mut Turtle) -> Result<String> {
+    let action = turtle.next()?;
     let action_str = serde_json::to_string(&action.to_api_call())?;
-    
-    turtle.record(action);
+
     Ok(action_str)
 }
 
-fn do_client_stuff(mut socket: &mut WebSocket<TcpStream>, initialization_msg: &str) -> Result<()> {
+fn handle_client_loop(mut socket: &mut WebSocket<TcpStream>, initialization_msg: &str) -> Result<()> {
     println!("Received initialization msg {}", initialization_msg);
     let mut turtle = create_turtle(&initialization_msg)?;
     println!("Successfully initialized turtle {}", turtle.id);
@@ -181,26 +176,25 @@ fn do_client_stuff(mut socket: &mut WebSocket<TcpStream>, initialization_msg: &s
     loop {
         match socket.read_message()? {
             Message::Text(x) => {
-                let response = execute_message(&mut turtle, &x.as_str())?;
+                execute_message(&mut turtle, &x.as_str())?;
+                let response = next_response(&mut turtle)?;
                 socket.write_message(Message::Text(response))?;
-            },
-            msg @ Message::Binary(_) => {
-                socket.write_message(msg)?;
             },
             Message::Ping(_) | Message::Pong(_) | Message::Close(_) => {
                 println!("Ping/pong/close")
-            }
+            },
+            Message::Binary(_) => panic!("Binary message received!")
         }
         thread::sleep(time::Duration::from_millis(1));
     }
 }
 
-fn handle_client(stream: TcpStream) -> Result<()> {
+fn accept_client(stream: TcpStream) -> Result<()> {
     let mut socket = accept(stream).map_err(must_not_block)?;
     println!("Waiting for initialization");
     match socket.read_message()? {
         Message::Text(x) => {
-            do_client_stuff(&mut socket, x.as_str())
+            handle_client_loop(&mut socket, x.as_str())
         },
         _ => {
             Err(anyhow!("Invalid handshake"))
@@ -210,7 +204,6 @@ fn handle_client(stream: TcpStream) -> Result<()> {
 }
 
 
-
 fn main() {
     
     let listener = TcpListener::bind("25.75.103.40:80").unwrap();
@@ -218,7 +211,7 @@ fn main() {
     for stream in listener.incoming() {
         let h = spawn(move || match stream {
             Ok(stream) => {
-                if let Err(err) = handle_client(stream) {
+                if let Err(err) = accept_client(stream) {
                     match err {
                         e => println!("Client error: {}", e),
                     }

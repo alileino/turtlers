@@ -1,7 +1,7 @@
 use crate::turtle_program::*;
 use crate::turtle_action::*;
 use crate::turtle_state::*;
-
+use anyhow::Result;
 pub struct Turtle {
     pub id: String,
     pub program: Box<dyn TurtleProgram>,
@@ -25,7 +25,7 @@ impl Turtle {
         }
     }
 
-    pub(crate) fn program_state(&self) -> ProgramState {
+    fn program_state(&self) -> ProgramState {
         let progress = self.program.progress();
         if progress.0 == progress.1 {
             return ProgramState::Finished;
@@ -34,19 +34,30 @@ impl Turtle {
         ProgramState::HasInstructions(progress_f)
     }
 
-    pub(crate) fn set_program(&mut self, program: Box<dyn TurtleProgram>) {
+    pub fn set_program(&mut self, program: Box<dyn TurtleProgram>) {
         self.program = program;
         println!("Set program to {}", self.program.name());
     }
 
-    pub(crate) fn record(&mut self, action: TurtleAction) {
+    fn record(&mut self, action: TurtleAction) {
         println!("{:?}", action);
         self.last_action = Some(action);
     }
 
-    pub(crate) fn update(&mut self, result: &TurtleActionReturn) {
+    pub fn update(&mut self, result: &TurtleActionReturn) {
         let action = self.last_action.as_ref().unwrap();
         self.state.update(action, result);
         self.program.update(&self.state, action, result);
+    }
+
+
+    pub fn next(&mut self) -> Result<&TurtleAction> {
+        let action = match self.program_state() {
+            ProgramState::HasInstructions(_) => self.program.next()?,
+            ProgramState::Finished => TurtleAction::Stop,
+            _ => panic!()
+        };
+        self.record(action);
+        Ok(&self.last_action.as_ref().unwrap())
     }
 }
