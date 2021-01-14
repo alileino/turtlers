@@ -83,15 +83,18 @@ impl WorldState {
     pub fn new(id: String) -> Self {
         let dest_path = WorldState::format_save_dir(id.as_str());
         std::fs::create_dir_all(dest_path).unwrap();
-        let state_fromfile = WorldState::deserialize(id.as_str());
+        let state_fromfile = deserialize_worldstate(id.as_str());
         let state = match state_fromfile {
             Ok(state) => state,
-            Err(e) => panic!(format!("{}, {:?}", e, e.source())) //HashMap::new()
+            Err(e) => {
+              println!("Creating a new state");
+                HashMap::new()
+            }
         };
         
         WorldState {
-            state: state,
-            id: id
+            state,
+            id
         }
     }
 
@@ -104,7 +107,11 @@ impl WorldState {
         format!("{}/state.txt", dir)
     }
 
-
+    pub fn update_all(&mut self, blocks: HashMap<Coord, Block>) {
+        for (coord, block) in blocks {
+            self.update_at(coord, block);
+        }
+    }
 
     fn serialize(&self) -> Result<()> {
         let path = WorldState::state_filepath(&self.id);
@@ -193,49 +200,48 @@ impl WorldState {
         result
     }
 
-    
-    fn deserialize(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
-        let path = WorldState::state_filepath(id);
-        let mut result: HashMap<Vec3<i32>, Block> = HashMap::new();
-        // let file = std::fs::File::open(path)?;
-        println!("Opening path {}", path);
-        let contents = std::fs::read_to_string(path)?;
-        let lines: Vec<&str> = contents.split('\n').collect();
-        let version = lines.first().expect("Illegal file");
-        assert_eq!(&"1", version);
-        println!("{:?}", lines);
-        let mut iter = lines[1..].iter();
-        while let Some(mut line) = iter.next() {
-            if line.trim() == "" {
-                break;
-            }
-            println!("Line: {}", line);
-            let minv: Coord = serde_json::from_str(line)?;
-            line = iter.next().unwrap();
-            println!("Line: {}", line);
-            let maxv: Coord = serde_json::from_str(line)?;
-            let y = minv.1;
-            for x in (minv.0..=maxv.0).rev() {
-                
-                line = iter.next().unwrap();
-                println!("x={}, Line: {}", x, line);
-                
-                let mut citer = line.chars();
-                for z in minv.2..=maxv.2 {
-                    let val = citer.next().unwrap();
-                    let key = Vec3::<i32>(x, y, z);        
-                    result.insert(key, Block::from(val));
-                }
-            }
-        }
-
-
-        Ok(result)
-    }
 
 }
 
 
+pub fn deserialize_worldstate(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
+    let path = WorldState::state_filepath(id);
+    let mut result: HashMap<Vec3<i32>, Block> = HashMap::new();
+    // let file = std::fs::File::open(path)?;
+    println!("Opening path {}", path);
+    let contents = std::fs::read_to_string(path)?;
+    let lines: Vec<&str> = contents.split('\n').collect();
+    let version = lines.first().expect("Illegal file");
+    assert_eq!(&"1", version);
+    println!("{:?}", lines);
+    let mut iter = lines[1..].iter();
+    while let Some(mut line) = iter.next() {
+        if line.trim() == "" {
+            break;
+        }
+        // println!("Line: {}", line);
+        let minv: Coord = serde_json::from_str(line)?;
+        line = iter.next().unwrap();
+        // println!("Line: {}", line);
+        let maxv: Coord = serde_json::from_str(line)?;
+        let y = minv.1;
+        for x in (minv.0..=maxv.0).rev() {
+
+            line = iter.next().unwrap();
+            // println!("x={}, Line: {}", x, line);
+
+            let mut citer = line.chars();
+            for z in minv.2..=maxv.2 {
+                let val = citer.next().unwrap();
+                let key = Vec3::<i32>(x, y, z);
+                result.insert(key, Block::from(val));
+            }
+        }
+    }
+
+
+    Ok(result)
+}
 
 //  Two different measurements guarantee the orientation of the state
 #[derive(Debug, Clone)]
