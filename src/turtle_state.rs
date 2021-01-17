@@ -9,18 +9,41 @@ use anyhow::{Result};
 use std::io::prelude::*;
 use crate::{turtle_rotation::*};
 // Guesses the state of turtle by the recorded executed commands.
-type Coord = Vec3::<i32>;
+pub type Coord = Vec3::<i32>;
+
+#[derive(Clone)]
+pub enum StateSerializationPolicy {
+    /// Load state upon initialization, and save after each modification.
+    /// String basedirectory,
+    LoadAndSave{load_dir: String, save_dir: String},
+    /// Load state upon initialization, never save
+    LoadOnly{load_dir: String},
+    /// Start from clean slate, and save after each modification
+    SaveOnly{save_dir: String},
+    /// Don't load anything, forget everything.
+    None
+}
+
 
 pub struct TurtleState {
     pub location: LocationState,
     pub world: WorldState
 }
 
+
+
 impl TurtleState {
-    pub fn new(id: String) -> Self {
+    pub fn new(id: String, serialization: StateSerializationPolicy) -> Self {
         TurtleState{
             location: LocationState::new(),
-            world: WorldState::new(id)
+            world: WorldState::new(id, serialization.clone())
+        }
+    }
+
+    pub fn from(location: LocationState, world: WorldState) -> Self {
+        TurtleState {
+            location,
+            world
         }
     }
 
@@ -29,7 +52,7 @@ impl TurtleState {
         self.world.update(action, result, &self.location);
     }
 }
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
     Unknown,
     Air,
@@ -61,7 +84,8 @@ impl Block {
 
 pub struct WorldState {
     pub state: HashMap<Coord, Block>,
-    id: String
+    id: String,
+    ser_policy: StateSerializationPolicy
 }
 
 pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
@@ -80,31 +104,23 @@ pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
 }
 
 impl WorldState {
-    pub fn new(id: String) -> Self {
-        let dest_path = WorldState::format_save_dir(id.as_str());
-        std::fs::create_dir_all(dest_path).unwrap();
-        let state_fromfile = deserialize_worldstate(id.as_str());
-        let state = match state_fromfile {
-            Ok(state) => state,
-            Err(e) => {
-              println!("Creating a new state");
-                HashMap::new()
-            }
-        };
+    pub fn new(id: String, ser_policy: StateSerializationPolicy) -> Self {
+        let state = WorldState::deserialize_or_empty(&id, &ser_policy);
         
         WorldState {
             state,
-            id
+            id,
+            ser_policy
         }
     }
 
-    fn format_save_dir(id: &str) -> String {
-        format!("state/{}", id)
-    }
 
-    fn state_filepath(id: &str) -> String {
-        let dir = WorldState::format_save_dir(id);
-        format!("{}/state.txt", dir)
+    fn state_filepath(dir: &str, id: &str, create: bool) -> String {
+        let basedir = format!("{}/{}", dir, id);
+        if create {
+            std::fs::create_dir_all(&basedir).unwrap();
+        }
+        format!("{}/state.txt", &basedir)
     }
 
     pub fn update_all(&mut self, blocks: HashMap<Coord, Block>) {
@@ -113,8 +129,35 @@ impl WorldState {
         }
     }
 
-    fn serialize(&self) -> Result<()> {
-        let path = WorldState::state_filepath(&self.id);
+    fn try_serialize(&self)  {
+        match &self.ser_policy {
+            StateSerializationPolicy::LoadAndSave {  save_dir, .. }|
+            StateSerializationPolicy::SaveOnly { save_dir } => {
+                let path = WorldState::state_filepath(save_dir.as_str(), &self.id, true);
+                self.serialize(path.as_str());
+            }
+            StateSerializationPolicy::LoadOnly {..}|
+            StateSerializationPolicy::None => {}
+        };
+    }
+
+    fn deserialize_or_empty(id: &str, ser_policy: &StateSerializationPolicy) -> HashMap<Coord, Block> {
+        match ser_policy {
+            StateSerializationPolicy::LoadAndSave { load_dir, ..}|
+            StateSerializationPolicy::LoadOnly { load_dir} => {
+                let state_result = deserialize_worldstate(load_dir, id);
+                match state_result {
+                    Ok(state) => state,
+                    Err(_) => HashMap::new()
+                }
+            },
+            StateSerializationPolicy::SaveOnly { .. }|
+            StateSerializationPolicy::None => { HashMap::new()}
+        }
+    }
+
+    fn serialize(&self, path: &str) -> Result<()> {
+        // let path = WorldState::state_filepath(&self.id);
         let (minv, maxv) = dimensions(self.state.keys());
         
         let mut file = std::fs::File::create(path)?;
@@ -135,7 +178,7 @@ impl WorldState {
         let previous = self.state.insert(loc_absolute, block.clone());
         match previous {
             Some(ref oldblock) if oldblock==&block => {}, // do nothing
-            _ => self.serialize().unwrap()
+            _ => self.try_serialize()
         };
     }
 
@@ -204,12 +247,12 @@ impl WorldState {
 }
 
 
-pub fn deserialize_worldstate(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
-    let path = WorldState::state_filepath(id);
+pub fn deserialize_worldstate(state_dir: &str, id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
+    let path = WorldState::state_filepath(state_dir, id, false);
     let mut result: HashMap<Vec3<i32>, Block> = HashMap::new();
     // let file = std::fs::File::open(path)?;
-    println!("Opening path {}", path);
-    let contents = std::fs::read_to_string(path)?;
+    println!("Opening path {}", &path);
+    let contents = std::fs::read_to_string(&path)?;
     let lines: Vec<&str> = contents.split('\n').collect();
     let version = lines.first().expect("Illegal file");
     assert_eq!(&"1", version);
@@ -232,8 +275,10 @@ pub fn deserialize_worldstate(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
 
             let mut citer = line.chars();
             for z in minv.2..=maxv.2 {
-                let val = citer.next().unwrap();
+
                 let key = Vec3::<i32>(x, y, z);
+                let val = citer.next()
+                    .expect(format!("Coordinte {:?} did not exist in {}", &key, &path).as_str());
                 result.insert(key, Block::from(val));
             }
         }
@@ -244,7 +289,7 @@ pub fn deserialize_worldstate(id: &str) -> Result<HashMap<Vec3<i32>, Block>> {
 }
 
 //  Two different measurements guarantee the orientation of the state
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LocationMode {
     Relative(Option<(Coord, Coord)>), // relative pos1, absolute pos1
     Absolute((Coord, Rotation)) // difference of new relative pos2 and relative pos1, and same for absolute position
@@ -252,7 +297,7 @@ pub enum LocationMode {
 
  
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LocationState {
     pub loc: Coord, // Relative location
     pub loc_absolute: Option<Coord>, // Absolute, requires two GPS measurements from different locations
@@ -262,7 +307,7 @@ pub struct LocationState {
 }
 
 impl LocationState {
-    const DEFAULT_DIRECTION: AxisDirection = AxisDirection::Xp;
+    pub const DEFAULT_DIRECTION: AxisDirection = AxisDirection::Xp;
     pub fn new() -> Self {
         LocationState {
             loc: Vec3::zero(), 
@@ -374,6 +419,7 @@ impl Index<usize> for LocationState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::ser::State;
 
     #[test]
     fn test_single_move() {
@@ -432,7 +478,7 @@ mod tests {
 
     #[test]
     fn test_world_state_loading() {
-        let mut state = WorldState::new("0".to_string());
+        let mut state = WorldState::new("0".to_string(), StateSerializationPolicy::LoadOnly{load_dir:"state".to_string()});
         
     }
 }

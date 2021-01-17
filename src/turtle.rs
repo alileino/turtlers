@@ -2,6 +2,7 @@ use crate::turtle_program::*;
 use crate::turtle_action::*;
 use crate::turtle_state::*;
 use anyhow::Result;
+
 pub struct Turtle {
     pub id: String,
     pub program: Box<dyn TurtleProgram>,
@@ -16,12 +17,21 @@ pub enum ProgramState {
 }
 
 impl Turtle {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, ser_policy: StateSerializationPolicy) -> Self {
         Turtle {
             id: name.clone(),
             program: Box::new(NoProgram{}),
             last_action: None,
-            state: TurtleState::new(name)
+            state: TurtleState::new(name, ser_policy)
+        }
+    }
+
+    pub fn from(name: String, state: TurtleState) -> Self {
+        Turtle {
+            id: name.clone(),
+            program: Box::new(NoProgram{}),
+            last_action: None,
+            state
         }
     }
 

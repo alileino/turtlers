@@ -11,6 +11,7 @@ use std::{net::{TcpListener, TcpStream}, thread::{self, spawn}, time};
 
 use tungstenite::{accept, handshake::HandshakeRole, HandshakeError, Message};
 use tungstenite as tung;
+use turtlers::turtle_state::StateSerializationPolicy;
 
 fn must_not_block<Role: HandshakeRole>(err: HandshakeError<Role>) -> tung::Error {
     match err {
@@ -34,8 +35,8 @@ struct UnknownMsg {
 
 pub fn create_turtle(initialization_msg: &str) -> Result<Turtle> {
     let v: InitMsg = serde_json::from_str(initialization_msg)?;
-    
-    let turtle = Turtle::new(v.id);
+    let ser_policy = StateSerializationPolicy::LoadAndSave {load_dir: "state".to_string(), save_dir: "state".to_string()};
+    let turtle = Turtle::new(v.id, ser_policy);
     Ok(turtle)
 }
 

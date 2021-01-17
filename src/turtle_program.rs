@@ -143,7 +143,7 @@ pub struct PathfindingTestProgram {
 impl PathfindingTestProgram {
     pub fn new() -> Self {
         let random = RandomProgram::new(false,true, true);
-        PathfindingTestProgram{random:random, gps_initialized:false, pathfinder: None}
+        PathfindingTestProgram{random, gps_initialized:false, pathfinder: None}
     }
 }
 
@@ -316,6 +316,52 @@ impl TurtleProgram for RandomProgram {
 
     fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn) {
         // Don't care
+    }
+}
+
+/// Program that simply executes the predetermined actions
+#[derive(Debug)]
+pub struct FromActionsProgram {
+    actions: Vec<TurtleAction>,
+    index: usize
+}
+
+impl FromActionsProgram {
+    pub fn new(actions: Vec<TurtleAction>) -> Self {
+        FromActionsProgram {
+            actions,
+            index: 0
+        }
+    }
+
+    pub fn from(actions: &[TurtleAction]) -> Self {
+        Self::new(Vec::from(actions))
+    }
+}
+
+
+
+impl TurtleProgram for FromActionsProgram {
+
+
+    fn next(&mut self) -> Result<TurtleAction> {
+        if self.index < self.actions.len() {
+            Ok(self.actions[self.index].clone())
+        } else {
+            Err(anyhow!("next() called when the program is finished!"))
+        }
+    }
+
+    fn progress(&self) -> (u32, u32) {
+        (self.index as u32, self.actions.len() as u32)
+    }
+
+    fn name(&self) -> &str {
+        "fromactions"
+    }
+
+    fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
+        self.index += 1;
     }
 }
 
