@@ -149,7 +149,7 @@ impl WorldState {
             StateSerializationPolicy::LoadAndSave {  save_dir, .. }|
             StateSerializationPolicy::SaveOnly { save_dir } => {
                 let path = WorldState::state_filepath(save_dir.as_str(), &self.id, true);
-                self.serialize(path.as_str());
+                self.serialize(path.as_str()).unwrap();
             }
             StateSerializationPolicy::LoadOnly {..}|
             StateSerializationPolicy::None => {}
@@ -197,6 +197,10 @@ impl WorldState {
         };
     }
 
+    pub fn get(&self, loc_absolute: &Coord) -> Block {
+        self.state.get(loc_absolute).unwrap_or(&Block::Unknown).clone()
+    }
+
     fn is_solid_above(&self, loc: &Coord) -> bool {
         let above = loc + &AxisDirection::AD_YP;
         match self.state.get(&above) {
@@ -234,7 +238,7 @@ impl WorldState {
                 },
                 (TurtleAction::Detect{direction}, TurtleActionReturn::Boolean(value)) => {
                     let dest_loc = loc.get_dest_position_absolute(direction);
-                    let block = if value {
+                    let block = if *value {
                         Block::Block
                     } else {
                         Block::Air
@@ -445,7 +449,7 @@ impl LocationState {
                     self.update_gps(location);
                 }
             }
-            TurtleAction::Detect{direction} => {}, // Does not affect movement
+            TurtleAction::Detect{..} => {}, // Does not affect movement
             _ => todo!("Not implemented: {:?}", action)
         }
         self.update_absolute_location();

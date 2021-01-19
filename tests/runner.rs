@@ -1,11 +1,9 @@
 
 use turtlers::turtle_state::*;
 use turtlers::turtle::*;
-use anyhow::Result;
 use turtlers::turtle_program::{TurtleProgram};
 use turtlers::turtle_action::{TurtleAction, TurtleActionReturn, FailureReason};
-use turtlers::turtle_rotation::{AxisDirection, get_dest_pos};
-use std::borrow::Borrow;
+use turtlers::turtle_rotation::{AxisDirection};
 
 pub struct Runner {
     pub turtle: Turtle,
@@ -32,7 +30,7 @@ impl Runner {
         let shadow_wstate = WorldState::new(state_name.to_string(), load_from_test_policy);
 
         let rotation = AxisDirection::dot(&LocationState::DEFAULT_DIRECTION, &start_location.1);
-        let mut shadow_loc = LocationState {
+        let shadow_loc = LocationState {
             location_precision: LocationMode::Absolute((start_location.0.clone(), rotation)),
             loc: Coord::zero(),
             direction: LocationState::DEFAULT_DIRECTION,
@@ -53,7 +51,7 @@ impl Runner {
         let shadow_state = TurtleState::from(shadow_loc, shadow_wstate);
 
 
-        let mut runner = Runner {
+        let runner = Runner {
             turtle,
             shadow_state,
         };
@@ -166,7 +164,7 @@ impl Runner {
     pub fn run(&mut self, program: Box<dyn TurtleProgram>) {
         self.set_program(program);
         loop {
-            let (action, response) = self.execute_next();
+            let (action, _response) = self.execute_next();
             if action == TurtleAction::Stop {
                 break;
             }
@@ -262,8 +260,10 @@ mod tests {
         let mut runner = Runner::make_world_unknown_loc_known_originxp("test_box");
         runner.run(Box::new(program));
         assert_eq!(Coord::new(0,0,2), runner.shadow_location().loc);
+        assert_eq!(Block::Unknown, runner.world().get(&Coord::new(0,0,3)));
         let response = runner.execute_action(&detect::forward());
-        assert!(matches!(TurtleActionReturn::Boolean(true), response));
+        assert_eq!(response, TurtleActionReturn::Boolean(true));
+        assert_eq!(Block::Block, runner.world().get(&Coord::new(0,0,3)));
 
     }
 }

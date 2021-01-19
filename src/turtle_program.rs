@@ -360,7 +360,7 @@ impl TurtleProgram for FromActionsProgram {
         "fromactions"
     }
 
-    fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
+    fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn) {
         self.index += 1;
     }
 }
