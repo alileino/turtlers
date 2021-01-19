@@ -50,7 +50,6 @@ impl Turtle {
     }
 
     fn record(&mut self, action: TurtleAction) {
-        println!("{:?}", action);
         self.last_action = Some(action);
     }
 

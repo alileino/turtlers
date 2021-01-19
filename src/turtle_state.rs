@@ -88,6 +88,21 @@ pub struct WorldState {
     ser_policy: StateSerializationPolicy
 }
 
+impl WorldState {
+    pub fn is_obstructed(&self, coord: &Vec3<i32>) -> Option<bool> {
+        if let Some(block) = self.state.get(&coord) {
+            match block {
+                Block::Unknown|
+                Block::AirOrGravityBlock => Option::None,
+                Block::Air => Some(false),
+                Block::Block => Some(true)
+            }
+        } else {
+            Option::None
+        }
+    }
+}
+
 pub fn dimensions<'a>(iter: impl Iterator<Item= &'a Coord>) -> (Coord, Coord) {
     let (mut x_min, mut x_max): (i32, i32) = (i32::MAX, i32::MIN);
     let (mut y_min, mut y_max): (i32, i32) = (i32::MAX, i32::MIN);
@@ -216,6 +231,15 @@ impl WorldState {
                     let unit_dir = loc.get_dest_direction_absolute(&direction).unwrap(); // has to exist since we are in absolute
                     let dest = &loc_absolute + &unit_dir;
                     self.update_at(dest, Block::Block);
+                },
+                (TurtleAction::Detect{direction}, TurtleActionReturn::Boolean(value)) => {
+                    let dest_loc = loc.get_dest_position_absolute(direction);
+                    let block = if value {
+                        Block::Block
+                    } else {
+                        Block::Air
+                    };
+                    self.update_at(dest_loc.unwrap(), block);
                 }
                 _ => {}
             }
@@ -369,13 +393,31 @@ impl LocationState {
     }
 
     pub fn get_dest_direction_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {
-        let unit_dir = self.get_dest_direction_local(move_direction);
-        if let LocationMode::Absolute((_base, rot)) = &self.location_precision {
-            Some(rot.apply_to(&unit_dir))
-        } else {
+
+        if self.loc_absolute.is_none() {
             None
+        } else {
+            let unit_dir = get_dest_axisdirection(&self.direction_absolute, move_direction);
+            Some(unit_dir)
+
+        }
+        // let unit_dir = self.get_dest_direction_local(move_direction);
+        // if let LocationMode::Absolute((_base, rot)) = &self.location_precision {
+        //     Some(rot.apply_to(&unit_dir))
+        // } else {
+        //     None
+        // }
+    }
+
+    pub fn get_dest_position_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {
+        if self.loc_absolute.is_none() {
+            None
+        } else {
+            Some(self.loc_absolute.as_ref().unwrap() + self.get_dest_direction_absolute(move_direction).as_ref().unwrap())
         }
     }
+
+
 
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
         match action {
@@ -403,7 +445,8 @@ impl LocationState {
                     self.update_gps(location);
                 }
             }
-            _ => panic!()
+            TurtleAction::Detect{direction} => {}, // Does not affect movement
+            _ => todo!("Not implemented: {:?}", action)
         }
         self.update_absolute_location();
     }

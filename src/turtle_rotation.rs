@@ -156,6 +156,11 @@ pub fn get_dest_axisdirection(cur_axis: &AxisDirection, move_direction: &Relativ
     }
 }
 
+pub fn get_dest_pos(cur_pos: &Coord, cur_axis: &AxisDirection, move_direction: &RelativeDirection) -> Coord {
+    let loc_dir = get_dest_axisdirection(&cur_axis, move_direction);
+    cur_pos + &loc_dir
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
