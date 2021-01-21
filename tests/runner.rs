@@ -12,7 +12,6 @@ pub struct Runner {
 }
 
 
-
 impl Runner {
     const TEST_STATE_DIR: &'static str = "tests/state";
 

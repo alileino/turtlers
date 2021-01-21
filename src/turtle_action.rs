@@ -59,103 +59,103 @@ pub enum TurtleAction {
 
 pub mod go {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Forward}}
-    pub fn backward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Backward}}
-    pub fn up() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Down}}
+    pub const fn forward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Forward}}
+    pub const fn backward() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Backward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Move{direction:RelativeDirection::Down}}
 }
 
 pub mod turn {
     use super::*;
-    pub fn left() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Left}}
-    pub fn right() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Right}}
+    pub const fn left() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Left}}
+    pub const fn right() -> TurtleAction {TurtleAction::Turn{direction:RelativeDirection::Right}}
 }
 
 pub mod dig {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Down}}
+    pub const fn forward() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Dig{direction:RelativeDirection::Down}}
 }
 
 pub mod inspect {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Down}}
+    pub const fn forward() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Inspect{direction:RelativeDirection::Down}}
 }
 
 pub mod detect {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Down}}
+    pub const fn forward() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Detect{direction:RelativeDirection::Down}}
 }
 
 pub mod place {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Down}}    
+    pub const fn forward() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Place{direction:RelativeDirection::Down}}
 }
 
 pub mod compare {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Down}}    
+    pub const fn forward() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Compare{direction:RelativeDirection::Down}}
 }
 
 pub mod attack {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Down}}    
+    pub const fn forward() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Attack{direction:RelativeDirection::Down}}
 }
 
 pub mod suck {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Down}}    
+    pub const fn forward() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Suck{direction:RelativeDirection::Down}}
 }
 
 pub mod drop {
     use super::*;
-    pub fn forward() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Forward}}
-    pub fn up() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Up}}
-    pub fn down() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Down}}    
+    pub const fn forward() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Forward}}
+    pub const fn up() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Up}}
+    pub const fn down() -> TurtleAction {TurtleAction::Drop{direction:RelativeDirection::Down}}
 }
 pub mod inventory {
     use super::*;
-    pub fn select(slot: u8) -> TurtleAction {
-        TurtleAction::Select{slot: slot}
+    pub const fn select(slot: u8) -> TurtleAction {
+        TurtleAction::Select{slot }
     }
 
-    pub fn count(slot: u8) -> TurtleAction {
-        TurtleAction::ItemCount{slot: slot}
+    pub const fn count(slot: u8) -> TurtleAction {
+        TurtleAction::ItemCount{slot }
     }
 
-    pub fn space(slot: u8) -> TurtleAction {
-        TurtleAction::ItemSpace{slot: slot}
+    pub const fn space(slot: u8) -> TurtleAction {
+        TurtleAction::ItemSpace{slot }
     }
 
-    pub fn detail(slot: u8) -> TurtleAction {
-        TurtleAction::ItemDetail{slot: slot}
+    pub const fn detail(slot: u8) -> TurtleAction {
+        TurtleAction::ItemDetail{slot }
     }
 
-    pub fn transfer_to(slot: u8) -> TurtleAction {
-        TurtleAction::TransferTo{slot: slot}
+    pub const fn transfer_to(slot: u8) -> TurtleAction {
+        TurtleAction::TransferTo{slot }
     }
 
-    pub fn compare_to(slot: u8) -> TurtleAction {
-        TurtleAction::CompareTo{slot: slot}
+    pub const fn compare_to(slot: u8) -> TurtleAction {
+        TurtleAction::CompareTo{slot }
     }
 }
 
 pub mod gps {
     use super::*;
-    pub fn locate() -> TurtleAction {
+    pub const fn locate() -> TurtleAction {
         TurtleAction::GpsLocate{timeout_ms: 2000u32, debug:false}
     }
 }

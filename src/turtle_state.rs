@@ -284,7 +284,6 @@ pub fn deserialize_worldstate(state_dir: &str, id: &str) -> Result<HashMap<Vec3<
     let lines: Vec<&str> = contents.split('\n').collect();
     let version = lines.first().expect("Illegal file");
     assert_eq!(&"1", version);
-    println!("{:?}", lines);
     let mut iter = lines[1..].iter();
     while let Some(mut line) = iter.next() {
         if line.trim() == "" {
