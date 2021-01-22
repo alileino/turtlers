@@ -365,6 +365,76 @@ impl TurtleProgram for FromActionsProgram {
     }
 }
 
+// A simple program whose task is to initialize GPS and to return to the position it was in
+#[derive(Debug)]
+pub struct InitGpsProgram {
+    strategy: usize,
+    step_in_strategy: i32,
+    has_gps: bool
+}
+
+impl InitGpsProgram {
+
+    pub fn new() -> Self {
+        InitGpsProgram {
+            strategy: 0,
+            step_in_strategy: -1,
+            has_gps: false
+        }
+    }
+
+    fn get_cur_strategy(&self) -> Vec<TurtleAction> {
+        match self.strategy {
+            0 => vec!(go::forward(), gps::locate(), go::backward()),
+            1 => vec!(go::backward(), gps::locate(), go::forward()),
+            2 => vec!(turn::right(), go::forward(), gps::locate(), go::backward(), turn::left(), go::backward()),
+            _ => panic!()
+        }
+    }
+}
+
+impl TurtleProgram for InitGpsProgram {
+
+
+    fn next(&mut self) -> Result<TurtleAction> {
+        let strategy = self.get_cur_strategy();
+        if self.step_in_strategy == -1 {
+            Ok(gps::locate())
+        } else if self.step_in_strategy as usize == strategy.len() {
+            Err(anyhow!(""))
+        }else {
+            Ok(strategy[self.step_in_strategy as usize].clone())
+        }
+    }
+
+    fn progress(&self) -> (u32, u32) {
+        if self.step_in_strategy as usize == self.get_cur_strategy().len() {
+            (1, 1)
+        } else {
+            (0, 1)
+        }
+    }
+
+    fn name(&self) -> &str {
+        "initgps"
+    }
+
+    fn update(&mut self, _state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
+        match (action, result) {
+            (TurtleAction::Move{..}, TurtleActionReturn::Failure(..)) => {
+                self.strategy += 1;
+                self.step_in_strategy = -1
+            },
+            (TurtleAction::GpsLocate {..}, TurtleActionReturn::Failure(..)) => {
+                panic!("No gps!")
+            },
+            (_, _) => {
+                self.step_in_strategy += 1;
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
