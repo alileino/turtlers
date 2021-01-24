@@ -244,6 +244,11 @@ impl WorldState {
                         Block::Air
                     };
                     self.update_at(dest_loc.unwrap(), block);
+                },
+                (TurtleAction::Inspect{direction}, TurtleActionReturn::Failure(FailureReason::NoBlockToInspect)) => {
+
+                    let dest_loc = loc.get_dest_position_absolute(direction);
+                    self.update_at(dest_loc.unwrap(), Block::Air);
                 }
                 _ => {}
             }
@@ -449,6 +454,7 @@ impl LocationState {
                 }
             }
             TurtleAction::Detect{..} => {}, // Does not affect movement
+            TurtleAction::Inspect{..} => {},
             _ => todo!("Not implemented: {:?}", action)
         }
         self.update_absolute_location();

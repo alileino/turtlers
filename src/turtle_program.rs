@@ -103,6 +103,7 @@ pub fn create_program(msg: &StartProgramMsg ) -> Result<Box<dyn TurtleProgram>> 
             "random" => Box::new(RandomProgram::new(false, false, false)),
             "locatetest" => Box::new(LocationTestProgram::new()),
             "pathfindtest" => Box::new(PathfindingTestProgram::new()),
+            "initgps" => Box::new(InitGpsProgram::new()),
             program => return Err(anyhow!("Invalid program: {}", program))
     };
     Ok(boxed)

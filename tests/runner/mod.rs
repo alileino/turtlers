@@ -133,7 +133,9 @@ impl Runner {
             TurtleAction::ItemDetail { .. } => {todo!()},
             TurtleAction::TransferTo { .. } => {todo!()},
             TurtleAction::CompareTo { .. } => {todo!()},
-            TurtleAction::GpsLocate { .. } => {todo!()},
+            TurtleAction::GpsLocate { .. } => {
+                TurtleActionReturn::Coordinate(self.shadow_location().loc_absolute.as_ref().unwrap().clone())
+            },
             TurtleAction::Stop => panic!()
         }
     }
