@@ -253,14 +253,8 @@ impl RTAStar {
     }
 
     pub fn update(&mut self, state: &TurtleState)  {
-        self.it += 1;
-        if self.it % 2 == 1 {
-            self.next = Some(gps::locate())
-        } else {
-            let next= self.next_node(&state);
-
-            self.next = Some(next)
-        }
+        let next= self.next_node(&state);
+        self.next = Some(next);
     }
 
     pub fn next(&self) -> Result<TurtleAction> {

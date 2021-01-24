@@ -7,12 +7,28 @@ extern crate rand;
 use rand::{seq::SliceRandom};
 use crate::pathfind;
 use crate::{turtle_rotation::RelativeDirection};
+use std::collections::VecDeque;
 
 pub trait TurtleProgram {
     fn next(&mut self) -> Result<TurtleAction>;
     fn progress(&self) -> (u32, u32); // Represents a fraction of progress
     fn name(&self) -> &str;
     fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn);
+}
+
+pub enum ProgramState {
+    Finished,
+    _Waiting(f64), // waiting for turtle to report back
+    HasInstructions(f64) // has instructions that can be delivered to turtle
+}
+
+pub(crate) fn program_state(program: &Box<dyn TurtleProgram>) -> ProgramState {
+    let progress = program.progress();
+    if progress.0 == progress.1 {
+        return ProgramState::Finished;
+    }
+    let progress_f = (progress.1 as f64)/(progress.0 as f64);
+    ProgramState::HasInstructions(progress_f)
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,7 +118,7 @@ pub fn create_program(msg: &StartProgramMsg ) -> Result<Box<dyn TurtleProgram>> 
             "no" => Box::new(NoProgram{}),
             "random" => Box::new(RandomProgram::new(false, false, false)),
             "locatetest" => Box::new(LocationTestProgram::new()),
-            "pathfindtest" => Box::new(PathfindingTestProgram::new()),
+            "pathfindtest" => Box::new(PathfindingTestProgram::new(Coord::zero(), AxisDirection::Xp)),
             "initgps" => Box::new(InitGpsProgram::new()),
             program => return Err(anyhow!("Invalid program: {}", program))
     };
@@ -136,30 +152,25 @@ pub struct TurtleResponseMsg {
 
 #[derive(Debug)]
 pub struct PathfindingTestProgram {
-    random: RandomProgram,
-    gps_initialized: bool,
-    pathfinder: Option<RTAStar>
+    pathfinder: RTAStar
 }
 
 impl PathfindingTestProgram {
-    pub fn new() -> Self {
-        let random = RandomProgram::new(false,true, true);
-        PathfindingTestProgram{random, gps_initialized:false, pathfinder: None}
+    pub fn new(loc: Vec3::<i32>, dir: AxisDirection) -> Self {
+        PathfindingTestProgram{
+            pathfinder: RTAStar::new(loc, dir)
+        }
     }
 }
 
 impl TurtleProgram for PathfindingTestProgram {
     fn next(&mut self) -> Result<TurtleAction> {
-        if self.pathfinder.is_some() {
+        self.pathfinder.next()
 
-            self.pathfinder.as_ref().unwrap().next()
-        } else {
-            self.random.next()
-        }
     }
 
     fn progress(&self) -> (u32, u32) {
-        (0,1)
+        (0, 1)
     }
 
     fn name(&self) -> &str {
@@ -167,19 +178,7 @@ impl TurtleProgram for PathfindingTestProgram {
     }
 
     fn update(&mut self, state: &TurtleState,  _action: &TurtleAction, _result: &TurtleActionReturn) {
-        self.gps_initialized = state.location.loc_absolute.is_some();
-        
-        if self.gps_initialized {
-            if self.pathfinder.is_none() {
-                println!("Pathfinder initialized!");
-                let goal = Vec3::<i32>(223, 130, -253);
-                self.pathfinder = Some(RTAStar::new(goal, AxisDirection::Xm));
-            }
-
-            self.pathfinder.as_mut().unwrap().update(&state);
-        }
-        
-        
+        self.pathfinder.update(&state);
     }
 }
 
@@ -366,6 +365,61 @@ impl TurtleProgram for FromActionsProgram {
     }
 }
 
+pub struct MultiProgram {
+    programs: VecDeque<Box<dyn TurtleProgram>>,
+    current: Box<dyn TurtleProgram>
+}
+
+impl MultiProgram {
+    pub fn new(first: Box<dyn TurtleProgram>) -> Self {
+
+        MultiProgram {
+            programs: VecDeque::new(),
+            current: first
+        }
+    }
+
+    pub fn add(&mut self, program: Box<dyn TurtleProgram>)  {
+        self.programs.push_back(program);
+    }
+}
+
+impl TurtleProgram for MultiProgram {
+    fn next(&mut self) -> Result<TurtleAction> {
+        let mut from_current = self.current.next();
+        while let Err(_) = from_current {
+
+            let next_program = self.programs.pop_front();
+            if next_program.is_none() {
+                return Err(anyhow!("Out of programs"));
+            }
+            self.current = next_program.unwrap();
+            from_current = self.current.next();
+        };
+        from_current
+    }
+
+    fn progress(&self) -> (u32, u32) {
+        let current_progress =  self.current.progress();
+        (current_progress.0, current_progress.1 + self.programs.len() as u32)
+    }
+
+    fn name(&self) -> &str {
+        "multiprogram"
+    }
+
+    fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
+        let program = match program_state(&self.current) {
+            ProgramState::Finished => {
+                self.programs.front_mut().unwrap_or(&mut self.current)
+
+            }
+            _ => &mut self.current
+        };
+        program.update(state, action, result);
+    }
+}
+
 // A simple program whose task is to initialize GPS and to return to the position it was in
 #[derive(Debug)]
 pub struct InitGpsProgram {
@@ -421,6 +475,7 @@ impl TurtleProgram for InitGpsProgram {
     }
 
     fn update(&mut self, _state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
+        println!("{:?} - {:?}", action, result);
         match (action, result) {
             (TurtleAction::Move{..}, TurtleActionReturn::Failure(..)) => {
                 self.strategy += 1;
@@ -435,6 +490,8 @@ impl TurtleProgram for InitGpsProgram {
         }
     }
 }
+
+
 
 #[cfg(test)]
 mod tests {

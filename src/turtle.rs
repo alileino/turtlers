@@ -10,11 +10,7 @@ pub struct Turtle {
     pub state: TurtleState
 }
 
-pub enum ProgramState {
-    Finished,
-    _Waiting(f64), // waiting for turtle to report back
-    HasInstructions(f64) // has instructions that can be delivered to turtle
-}
+
 
 impl Turtle {
     pub fn new(name: String, ser_policy: StateSerializationPolicy) -> Self {
@@ -36,12 +32,7 @@ impl Turtle {
     }
 
     fn program_state(&self) -> ProgramState {
-        let progress = self.program.progress();
-        if progress.0 == progress.1 {
-            return ProgramState::Finished;
-        }
-        let progress_f = (progress.1 as f64)/(progress.0 as f64);
-        ProgramState::HasInstructions(progress_f)
+        program_state(&self.program)
     }
 
     pub fn set_program(&mut self, program: Box<dyn TurtleProgram>) {
