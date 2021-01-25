@@ -232,7 +232,7 @@ impl TurtleAction {
 }
 
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum FailureReason {
     MovementObstructed, // move
     NoBlockToInspect, // inspect
@@ -249,7 +249,7 @@ pub enum FailureReason {
     GpsLocateFailure
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum TurtleActionReturn {
     Success,
     Failure(FailureReason),

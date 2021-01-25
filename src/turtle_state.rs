@@ -468,6 +468,26 @@ impl Index<usize> for LocationState {
     }
 }
 
+pub struct ActionHistory {
+    history: Vec<(TurtleAction, TurtleActionReturn)>
+}
+
+impl ActionHistory  {
+    pub fn new() -> Self {
+        ActionHistory {
+            history: vec![]
+        }
+    }
+
+    pub fn move_steps_len(&self) -> usize {
+        0
+    }
+
+    pub fn update(&mut self, action: &TurtleAction, response: &TurtleActionReturn) {
+        self.history.push((action.clone(), response.clone()));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

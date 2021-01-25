@@ -32,6 +32,6 @@ mod tests {
         let mut program = create_gps_and_pathfinder(&coord, &AxisDirection::Xp);
         let mut runner = Runner::make_world_unknown_loc_unknown_originxp("test_box");
         runner.run(program);
-        
+
     }
 }
