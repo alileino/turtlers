@@ -14,6 +14,8 @@ pub trait TurtleProgram {
     fn progress(&self) -> (u32, u32); // Represents a fraction of progress
     fn name(&self) -> &str;
     fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn);
+    // Updates received before next() is called
+    // fn pre_execution_update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {}
 }
 
 pub enum ProgramState {
@@ -165,6 +167,7 @@ impl PathfindingTestProgram {
 
 impl TurtleProgram for PathfindingTestProgram {
     fn next(&mut self) -> Result<TurtleAction> {
+        println!("PATHFINDING");
         self.pathfinder.next()
 
     }
@@ -178,6 +181,7 @@ impl TurtleProgram for PathfindingTestProgram {
     }
 
     fn update(&mut self, state: &TurtleState,  _action: &TurtleAction, _result: &TurtleActionReturn) {
+        println!("UPDATE PATHFINDING");
         self.pathfinder.update(&state);
     }
 }
@@ -409,14 +413,17 @@ impl TurtleProgram for MultiProgram {
     }
 
     fn update(&mut self, state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
-        let program = match program_state(&self.current) {
-            ProgramState::Finished => {
-                self.programs.front_mut().unwrap_or(&mut self.current)
-
-            }
-            _ => &mut self.current
-        };
-        program.update(state, action, result);
+        // let program = match program_state(&self.current) {
+        //     ProgramState::Finished => {
+        //         self.programs.front_mut().unwrap_or(&mut self.current)
+        //
+        //     }
+        //     _ => &mut self.current
+        // };
+        self.current.update(state, action, result);
+        for program in self.programs.iter_mut() {
+            program.update(state, action, result);
+        }
     }
 }
 

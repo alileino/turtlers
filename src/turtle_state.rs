@@ -27,7 +27,8 @@ pub enum StateSerializationPolicy {
 
 pub struct TurtleState {
     pub location: LocationState,
-    pub world: WorldState
+    pub world: WorldState,
+    pub history: ActionHistory
 }
 
 
@@ -36,20 +37,23 @@ impl TurtleState {
     pub fn new(id: String, serialization: StateSerializationPolicy) -> Self {
         TurtleState{
             location: LocationState::new(),
-            world: WorldState::new(id, serialization.clone())
+            world: WorldState::new(id, serialization.clone()),
+            history: ActionHistory::new()
         }
     }
 
     pub fn from(location: LocationState, world: WorldState) -> Self {
         TurtleState {
             location,
-            world
+            world,
+            history: ActionHistory::new()
         }
     }
 
     pub fn update(&mut self, action: &TurtleAction, result: &TurtleActionReturn) {
         self.location.update(action, result);
         self.world.update(action, result, &self.location);
+        self.history.update(action, result);
     }
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -335,7 +339,8 @@ pub struct LocationState {
     pub loc_absolute: Option<Coord>, // Absolute, requires two GPS measurements from different locations
     pub direction: AxisDirection,
     pub direction_absolute: AxisDirection,
-    pub location_precision: LocationMode
+    pub location_precision: LocationMode,
+    pub history: Vec<(Coord, AxisDirection)>
 }
 
 impl LocationState {
@@ -346,7 +351,8 @@ impl LocationState {
             direction: LocationState::DEFAULT_DIRECTION,
             direction_absolute: LocationState::DEFAULT_DIRECTION,
             loc_absolute: None,
-            location_precision: LocationMode::Relative(None)
+            location_precision: LocationMode::Relative(None),
+            history: vec![]
         }
     }
 
@@ -365,9 +371,9 @@ impl LocationState {
                 let abs_diff = new_absolute-&old_abs; // cur absolute - old absolute
                 let rotation = Rotation::find_rotation(&rel_diff, &abs_diff);
                 let new_offset = old_abs - &rotation.apply_to(old_rel);
-                println!("Found rotation {:?} and offset {:?} from {:?} arriving at {:?}", rotation, new_offset, self.loc, new_absolute);
-                println!("Relative coords: old: {:?} cur: {:?} diff: {:?}", old_loc.0, self.loc, rel_diff);
-                println!("Absolute coords: old: {:?} cur: {:?} diff: {:?}", old_loc.1, new_absolute, abs_diff);
+                // println!("Found rotation {:?} and offset {:?} from {:?} arriving at {:?}", rotation, new_offset, self.loc, new_absolute);
+                // println!("Relative coords: old: {:?} cur: {:?} diff: {:?}", old_loc.0, self.loc, rel_diff);
+                // println!("Absolute coords: old: {:?} cur: {:?} diff: {:?}", old_loc.1, new_absolute, abs_diff);
                 self.location_precision = LocationMode::Absolute((new_offset, rotation));
 
                 self.update_absolute_location();
@@ -390,8 +396,12 @@ impl LocationState {
             
             let loc_wrot = rot.apply_to(&self.loc);
             let loc_woffset = &loc_wrot + base;
-            self.loc_absolute = Some(loc_woffset);
+            self.loc_absolute = Some(loc_woffset.clone());
             self.direction_absolute = AxisDirection::from(&rot.apply_to(&self.direction.to_unit_vector()));
+            let latest = (loc_woffset, self.direction_absolute.clone());
+            if Some(&latest) == self.history.last() {
+                self.history.push(latest);
+            }
         }
     }
 
@@ -409,12 +419,6 @@ impl LocationState {
             Some(unit_dir)
 
         }
-        // let unit_dir = self.get_dest_direction_local(move_direction);
-        // if let LocationMode::Absolute((_base, rot)) = &self.location_precision {
-        //     Some(rot.apply_to(&unit_dir))
-        // } else {
-        //     None
-        // }
     }
 
     pub fn get_dest_position_absolute(&self, move_direction: &RelativeDirection) -> Option<Coord> {
@@ -459,6 +463,8 @@ impl LocationState {
         }
         self.update_absolute_location();
     }
+    
+
 }
 
 impl Index<usize> for LocationState {
@@ -480,7 +486,13 @@ impl ActionHistory  {
     }
 
     pub fn move_steps_len(&self) -> usize {
-        0
+        self.history.iter().filter(|(action,_)| matches!(action, TurtleAction::Move{..}|TurtleAction::Turn{..})).count()
+    }
+
+    pub fn print_move_steps(&self) {
+        let result = self.history.iter().map(|(x,_)| x).filter(|action| matches!(action, TurtleAction::Move{..}|TurtleAction::Turn{..}))
+            .map(|action| format!("{:?}", action)).collect::<String>();
+        println!("{}", result);
     }
 
     pub fn update(&mut self, action: &TurtleAction, response: &TurtleActionReturn) {

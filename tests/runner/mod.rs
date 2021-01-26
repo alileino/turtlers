@@ -34,7 +34,8 @@ impl Runner {
             loc: Coord::zero(),
             direction: LocationState::DEFAULT_DIRECTION,
             loc_absolute: Some(start_location.0.clone()),
-            direction_absolute: start_location.1
+            direction_absolute: start_location.1,
+            history: vec![]
         };
 
 
@@ -188,7 +189,9 @@ impl Runner {
         &self.shadow_state.location
     }
 
-
+    pub fn history(&self) -> &ActionHistory {
+        &self.turtle.state.history
+    }
 
 }
 

@@ -56,6 +56,18 @@ pub enum TurtleAction {
 }
 
 
+// impl TurtleAction {
+//     pub fn to_symbol(&self) -> char {
+//         match self {
+//             TurtleAction::Move{direction: RelativeDirection::Forward} => '\u{2190}',
+//             TurtleAction::Move{direction: RelativeDirection::Backward} => '\u{2190}',
+//             TurtleAction::Move{direction: RelativeDirection::Up} => '\u{2190}',
+//             _ => todo!()
+//         }
+//
+//     }
+// }
+
 
 pub mod go {
     use super::*;

@@ -1,6 +1,6 @@
 
 use std::{cmp::min, collections::{HashMap}};
-use crate::{turtle_action::{TurtleAction, gps}, vec3::*};
+use crate::{turtle_action::{TurtleAction}, vec3::*};
 use crate::{turtle_rotation::*};
 use crate::{turtle_state::*};
 use anyhow::{anyhow, Result};
@@ -253,8 +253,10 @@ impl RTAStar {
     }
 
     pub fn update(&mut self, state: &TurtleState)  {
-        let next= self.next_node(&state);
-        self.next = Some(next);
+        if state.location.loc_absolute.is_some() {
+            let next = self.next_node(&state);
+            self.next = Some(next);
+        }
     }
 
     pub fn next(&self) -> Result<TurtleAction> {
