@@ -1,9 +1,10 @@
 use turtlers;
-use turtlers::turtle_state::*;
+use turtlers::location_state::{LocationMode, LocationState};
 use turtlers::turtle::*;
-use turtlers::turtle_program::{TurtleProgram};
-use turtlers::turtle_action::{TurtleAction, TurtleActionReturn, FailureReason};
-use turtlers::turtle_rotation::{AxisDirection};
+use turtlers::turtle_action::{FailureReason, TurtleAction, TurtleActionReturn};
+use turtlers::turtle_program::TurtleProgram;
+use turtlers::turtle_rotation::AxisDirection;
+use turtlers::turtle_state::*;
 
 pub struct Runner {
     pub turtle: Turtle,
@@ -200,9 +201,10 @@ impl Runner {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use turtlers::turtle_action::{go, turn, detect};
+    use turtlers::turtle_action::{detect, go, turn};
     use turtlers::turtle_program::FromActionsProgram;
+
+    use super::*;
 
     #[test]
     fn runner_known_world_and_loc() {

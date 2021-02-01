@@ -6,7 +6,7 @@ use turtlers::turtle_state::Coord;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use turtlers::turtle_state::LocationMode;
+    use turtlers::location_state::LocationMode;
     use turtlers::turtle_rotation::{AxisDirection, Rotation};
     use turtlers::turtle_program::PathfindingTestProgram;
 
