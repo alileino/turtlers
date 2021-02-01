@@ -14,6 +14,7 @@ pub enum RelativeDirection {
 
 #[derive(PartialEq, Debug, Eq, Hash, Clone)]
 pub enum AxisDirection {
+    None,
     Xp,
     Xm,
     Zp,
@@ -92,7 +93,9 @@ impl AxisDirection {
             &AxisDirection::AD_XM => AxisDirection::Xm,
             &AxisDirection::AD_ZP => AxisDirection::Zp,
             &AxisDirection::AD_ZM => AxisDirection::Zm,
-            _ => panic!()
+            &AxisDirection::AD_YP => AxisDirection::Yp,
+            &AxisDirection::AD_YM => AxisDirection::Ym,
+            _ => AxisDirection::None
         }
     }
 
@@ -103,7 +106,8 @@ impl AxisDirection {
             AxisDirection::Zp => AxisDirection::AD_ZP,
             AxisDirection::Zm => AxisDirection::AD_ZM,
             AxisDirection::Yp => AxisDirection::AD_YP,
-            AxisDirection::Ym => AxisDirection::AD_YM
+            AxisDirection::Ym => AxisDirection::AD_YM,
+            AxisDirection::None => panic!("None direction is effectively zero vector, and can't be made into unit vector. ")
         }
     }
 

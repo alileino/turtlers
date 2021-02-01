@@ -374,10 +374,17 @@ impl LocationState {
                 // println!("Found rotation {:?} and offset {:?} from {:?} arriving at {:?}", rotation, new_offset, self.loc, new_absolute);
                 // println!("Relative coords: old: {:?} cur: {:?} diff: {:?}", old_loc.0, self.loc, rel_diff);
                 // println!("Absolute coords: old: {:?} cur: {:?} diff: {:?}", old_loc.1, new_absolute, abs_diff);
-                self.location_precision = LocationMode::Absolute((new_offset, rotation));
 
-                self.update_absolute_location();
-                self.update_gps(&new_absolute);
+
+                let mut new_history = vec![];
+                for (rel_coord, rel_dir) in &self.history {
+                    let loc_wrot = rotation.apply_to(&rel_coord);
+                    let loc_woffset = &loc_wrot + &new_offset;
+                    let axis_rotated = AxisDirection::from(&rotation.apply_to(&rel_dir.to_unit_vector()));
+                    new_history.push((loc_woffset, axis_rotated));
+                }
+                self.history = new_history;
+                self.location_precision = LocationMode::Absolute((new_offset, rotation));
 
             },
             LocationMode::Absolute(_) => {
@@ -399,10 +406,66 @@ impl LocationState {
             self.loc_absolute = Some(loc_woffset.clone());
             self.direction_absolute = AxisDirection::from(&rot.apply_to(&self.direction.to_unit_vector()));
             let latest = (loc_woffset, self.direction_absolute.clone());
-            if Some(&latest) == self.history.last() {
+            if Some(&latest) != self.history.last() {
                 self.history.push(latest);
             }
+        } else {
+            println!("TODO: this is never converted to absolute");
+            self.history.push((self.loc.clone(), self.direction.clone()));
         }
+    }
+
+    pub fn get_history_actions_absolute(&self) -> Vec<(AxisDirection, Rotation)> {
+        let mut result = vec![];
+        for i in 1..self.history.len() {
+            let first = &self.history[i-1];
+            let second = &self.history[i];
+            let delta_coord = &second.0- &first.0;
+            let delta = AxisDirection::from(&delta_coord);
+            let delta_dir = AxisDirection::dot(&second.1, &first.1);
+            result.push((delta, delta_dir));
+        }
+        result
+    }
+
+    pub fn print_history(&self) {
+        let history = self.get_history_actions_absolute();
+
+        let mut result = vec![];
+        for i in 0..history.len() {
+            let (movement_dir, rot) = &history[i];
+            let (position, axis_dir) = &self.history[i];
+            // println!("{:?} {:?} {:?}", position, axis_dir, axis_dir.to_unit_vector());
+            let c = match (movement_dir, rot) {
+                (AxisDirection::None, rotation) => {
+                    match (rotation) {
+                        Rotation::Y90 => '\u{21B7}',
+                        Rotation::Y270 => '\u{21B6}',
+                        _ => panic!()
+                    }
+                },
+                (dir, Rotation::Y0) => {
+                    match (dir, axis_dir) {
+                        (AxisDirection::Xp, AxisDirection::Xp) => '\u{2191}',
+                        (AxisDirection::Xp, AxisDirection::Xm) => '\u{21E1}',
+                        (AxisDirection::Xm, AxisDirection::Xm) => '\u{2193}',
+                        (AxisDirection::Xm, AxisDirection::Xp) => '\u{21E3}',
+                        (AxisDirection::Zp, AxisDirection::Zp) => '\u{2192}',
+                        (AxisDirection::Zp, AxisDirection::Zm) => '\u{21E2}',
+                        (AxisDirection::Zm, AxisDirection::Zm) => '\u{2190}',
+                        (AxisDirection::Zm, AxisDirection::Zp) => '\u{21E0}',
+                        (AxisDirection::Yp, _) => '\u{219F}',
+                        (AxisDirection::Ym, _) => '\u{21A1}',
+                        _ => panic!()
+                    }
+                },
+                (_, _) => panic!()
+            };
+
+            result.push(c);
+        }
+        let as_string = result.iter().collect::<String>();
+        println!("{}, {}", history.len(), as_string);
     }
 
 
@@ -417,7 +480,6 @@ impl LocationState {
         } else {
             let unit_dir = get_dest_axisdirection(&self.direction_absolute, move_direction);
             Some(unit_dir)
-
         }
     }
 
