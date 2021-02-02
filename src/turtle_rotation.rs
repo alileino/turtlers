@@ -175,9 +175,10 @@ mod tests {
             (AxisDirection::Xm, AxisDirection::Xm, Rotation::Y0),
             (AxisDirection::Xp, AxisDirection::Zm, Rotation::Y270),
             (AxisDirection::Xp, AxisDirection::Xm, Rotation::Y180),
+            (AxisDirection::Zp, AxisDirection::Zm, Rotation::Y180),
             (AxisDirection::Xp, AxisDirection::Zp, Rotation::Y90)
             
-            ];
+        ];
         for case in &cases {
             let (lhs, rhs, rot) = case;            
             let result = AxisDirection::dot(lhs, rhs);
