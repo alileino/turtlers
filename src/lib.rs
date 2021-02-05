@@ -6,3 +6,4 @@ pub mod vec3;
 pub mod turtle;
 pub mod pathfind;
 pub mod location_state;
+pub mod world_simulator;

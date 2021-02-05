@@ -1,10 +1,9 @@
-use turtlers;
-use turtlers::location_state::{LocationMode, LocationState};
-use turtlers::turtle::*;
-use turtlers::turtle_action::{FailureReason, TurtleAction, TurtleActionReturn};
-use turtlers::turtle_program::TurtleProgram;
-use turtlers::turtle_rotation::AxisDirection;
-use turtlers::turtle_state::*;
+use crate::location_state::{LocationMode, LocationState};
+use crate::turtle::Turtle;
+use crate::turtle_action::{FailureReason, TurtleAction, TurtleActionReturn};
+use crate::turtle_program::TurtleProgram;
+use crate::turtle_rotation::AxisDirection;
+use crate::turtle_state::{ActionHistory, Coord, StateSerializationPolicy, TurtleState, WorldState};
 
 pub struct Runner {
     pub turtle: Turtle,
@@ -197,14 +196,12 @@ impl Runner {
 }
 
 
-
-
 #[cfg(test)]
 mod tests {
-    use turtlers::turtle_action::{detect, go, turn};
-    use turtlers::turtle_program::FromActionsProgram;
-
     use super::*;
+    use crate::turtle_program::FromActionsProgram;
+    use crate::turtle_action::{turn, go, detect};
+    use crate::turtle_state::Block;
 
     #[test]
     fn runner_known_world_and_loc() {

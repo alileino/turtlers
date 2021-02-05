@@ -1,5 +1,5 @@
-mod runner;
-use runner::Runner;
+
+use turtlers::world_simulator::Runner;
 use turtlers::turtle_program::{InitGpsProgram, MultiProgram};
 use turtlers::turtle_state::Coord;
 
