@@ -37,7 +37,7 @@ impl LocationState {
     }
 
     fn update_gps(&mut self, new_absolute: &Vec3<i32>) {
-
+        println!("Updating gps {:?}", self.location_precision);
         match &self.location_precision {
             LocationMode::Relative(None) => {
                 self.location_precision = LocationMode::Relative(Some((self.loc.clone(), new_absolute.clone())));
@@ -75,6 +75,7 @@ impl LocationState {
                 }
             }
         }
+        println!("Update done {:?}", self.location_precision);
 
     }
 
@@ -84,18 +85,26 @@ impl LocationState {
             let loc_wrot = rot.apply_to(&self.loc);
             let loc_woffset = &loc_wrot + base;
             self.loc_absolute = Some(loc_woffset.clone());
-            self.direction_absolute = AxisDirection::from(&rot.apply_to(&self.direction.to_unit_vector()));
+            println!("Rotating {:?}, woffset {:?}", self.loc, loc_woffset);
+            let unit = self.direction.to_unit_vector();
+            let unit_rotated = rot.apply_to(&unit);
+            let as_axis_dir = AxisDirection::from(&unit_rotated);
+
+            println!("{:?} {:?} {:?}", unit, unit_rotated, as_axis_dir);
+            self.direction_absolute = as_axis_dir;
             let latest = (loc_woffset, self.direction_absolute.clone());
             if Some(&latest) != self.history.last() {
                 self.history.push(latest);
             }
         } else {
-            println!("TODO: this is never converted to absolute");
-            self.history.push((self.loc.clone(), self.direction.clone()));
+            let latest = (self.loc.clone(), self.direction.clone());
+            if Some(&latest) != self.history.last() {
+                self.history.push((self.loc.clone(), self.direction.clone()));
+            }
         }
     }
 
-    pub fn get_history_actions_absolute(&self) -> Vec<(AxisDirection, Rotation)> {
+    pub fn get_path_absolute(&self) -> Vec<(AxisDirection, Rotation)> {
         let mut result = vec![];
         for i in 1..self.history.len() {
             let first = &self.history[i-1];
@@ -109,7 +118,7 @@ impl LocationState {
     }
 
     pub fn print_history(&self) {
-        let history = self.get_history_actions_absolute();
+        let history = self.get_path_absolute();
 
         let mut result = vec![];
         for i in 0..history.len() {
@@ -158,6 +167,7 @@ impl LocationState {
         if self.loc_absolute.is_none() {
             None
         } else {
+            println!("GetDestDirAbsolute {:?} {:?}", self.direction_absolute, move_direction);
             let unit_dir = get_dest_axisdirection(&self.direction_absolute, move_direction);
             Some(unit_dir)
         }
@@ -223,7 +233,9 @@ impl Index<usize> for LocationState {
 mod tests {
 
     use super::*;
-    use crate::turtle_action::{turn, go};
+    use crate::turtle_action::{turn, go, gps};
+    use crate::world_simulator::Runner;
+    use crate::turtle_program::InitGpsProgram;
 
     #[test]
     fn test_single_move() {
@@ -281,8 +293,51 @@ mod tests {
     }
 
     #[test]
-    fn test_history() {
-        let mut state = LocationState::new();
+    fn test_gps() {
+        let mut runner = Runner::make_world_unknown_loc_unknown("test_box", Coord::new(0,0,0), AxisDirection::Zm);
+        let gps_program = InitGpsProgram::new();
+        assert_eq!(0, runner.location().get_path_absolute().len());
+        assert_eq!(AxisDirection::Zm, runner.shadow_location().direction_absolute);
+        if let LocationMode::Absolute((offset, rotation)) = &runner.shadow_location().location_precision {
+            assert_eq!(&Coord::zero(), offset);
+            assert_eq!(&Rotation::Y270, rotation);
+        } else {
+            assert!(false);
+        }
+        runner.execute_action(&gps::locate());
+        runner.execute_action(&gps::locate());
+        assert_eq!(AxisDirection::Zm, runner.shadow_location().direction_absolute);
+        runner.run(Box::new(gps_program));
+        runner.location().print_history();
+        println!("{:?}", runner.location().history);
+        assert_eq!(2, runner.location().get_path_absolute().len());
+        if let LocationMode::Absolute((offset, rotation)) = &runner.location().location_precision {
+            assert_eq!(&Coord::zero(), offset);
+            assert_eq!(&Rotation::Y270, rotation);
+        } else {
+            assert!(false);
+        }
+        assert_eq!(AxisDirection::Zm, runner.location().direction_absolute);
+
+
+    }
+    // Goal of this test is to ensure that
+    // 1. GPS is initialized correctly
+    // 2. History shows correct path after initialization.
+    // We need GPS to use history, so there's no way around doing both of these.
+    #[test]
+    fn test_gps_and_history() {
+        let mut runner = Runner::make_world_unknown_loc_unknown("test_box", Coord::new(0,0,0), AxisDirection::Zm);
+        let gps_program = InitGpsProgram::new();
+        assert_eq!(0, runner.location().get_path_absolute().len());
+        runner.run(Box::new(gps_program));
+        runner.location().print_history();
+        assert_eq!(2, runner.location().get_path_absolute().len());
+        let history = runner.location().get_path_absolute();
+        let (first_dir, first_rot) = history.first().unwrap();
+
+        assert_eq!(&AxisDirection::Zm, first_dir);
+        assert_eq!(&Rotation::Y0, first_rot);
 
     }
 

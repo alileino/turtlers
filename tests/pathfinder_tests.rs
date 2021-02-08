@@ -56,7 +56,7 @@ mod tests {
 
         runner.location().print_history();
         assert_eq!(Some(coord), runner.location().loc_absolute);
-        assert_eq!(8, runner.history().move_steps_len());
+        assert_eq!(7, runner.history().move_steps_len());
     }
 
 }

@@ -107,7 +107,7 @@ impl TurtleProgram for NoProgram {
     }
 
     fn update(&mut self, _state: &TurtleState, _action: &TurtleAction, _result: &TurtleActionReturn) {
-        todo!()
+
     }
 }
 
@@ -482,7 +482,7 @@ impl TurtleProgram for InitGpsProgram {
     }
 
     fn update(&mut self, _state: &TurtleState, action: &TurtleAction, result: &TurtleActionReturn) {
-        println!("{:?} - {:?}", action, result);
+        // println!("{:?} - {:?}", action, result);
         match (action, result) {
             (TurtleAction::Move{..}, TurtleActionReturn::Failure(..)) => {
                 self.strategy += 1;

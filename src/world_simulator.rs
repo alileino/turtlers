@@ -29,6 +29,7 @@ impl Runner {
         let shadow_wstate = WorldState::new(state_name.to_string(), load_from_test_policy);
 
         let rotation = AxisDirection::dot(&LocationState::DEFAULT_DIRECTION, &start_location.1);
+        println!("Rotation: {:?}, {:?}", rotation, start_location.1);
         let shadow_loc = LocationState {
             location_precision: LocationMode::Absolute((start_location.0.clone(), rotation)),
             loc: Coord::zero(),
@@ -200,18 +201,19 @@ impl Runner {
 mod tests {
     use super::*;
     use crate::turtle_program::FromActionsProgram;
-    use crate::turtle_action::{turn, go, detect};
+    use crate::turtle_action::{turn, go, detect, gps};
     use crate::turtle_state::Block;
 
     #[test]
     fn runner_known_world_and_loc() {
         let start_loc = Coord::new(1,2,3);
-        let runner =  Runner::make_world_known_loc_known("test_box", start_loc.clone(), AxisDirection::Zp);
+        let runner =  Runner::make_world_known_loc_known("test_box", start_loc.clone(), AxisDirection::Zm);
         assert_eq!(49, runner.world().state.len());
         assert_eq!(49, runner.shadow_world().state.len());
         assert_eq!(&start_loc, runner.shadow_location().loc_absolute.as_ref().unwrap());
         assert_eq!(&start_loc, runner.location().loc_absolute.as_ref().unwrap());
-        assert_eq!(&AxisDirection::Zp, &runner.location().direction_absolute);
+        assert_eq!(&AxisDirection::Zm, &runner.shadow_location().direction_absolute);
+        assert_eq!(&AxisDirection::Zm, &runner.location().direction_absolute);
     }
 
     #[test]
@@ -235,6 +237,7 @@ mod tests {
         assert!(runner.location().loc_absolute.is_none());
         assert_eq!(LocationMode::Relative(Option::None), runner.location().location_precision);
     }
+
 
     #[test]
     fn runner_state_detects_wall_going_forward() {
@@ -269,4 +272,18 @@ mod tests {
         assert_eq!(Block::Block, runner.world().get(&Coord::new(0,0,3)));
 
     }
+
+    #[test]
+    fn runner_has_sense_of_direction() {
+        let mut runner = Runner::make_world_unknown_loc_unknown("test_box", Coord::zero(), AxisDirection::Zm);
+        assert_eq!(AxisDirection::Zm, runner.shadow_location().direction_absolute);
+        runner.execute_action(&gps::locate());
+        assert_eq!(AxisDirection::Zm, runner.shadow_location().direction_absolute);
+        runner.execute_action(&go::forward());
+        assert_eq!(AxisDirection::Zm, runner.shadow_location().direction_absolute);
+        assert_eq!(&Coord::new(0,0,-1), runner.shadow_location().loc_absolute.as_ref().unwrap());
+        runner.execute_action(&gps::locate());
+
+    }
+
 }

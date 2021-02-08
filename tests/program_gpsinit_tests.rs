@@ -11,7 +11,7 @@ mod tests {
     #[test]
     fn going_forward_works() {
         let mut runner = Runner::make_world_unknown_loc_unknown_originxp("test_box");
-        let mut program = InitGpsProgram::new();
+        let program = InitGpsProgram::new();
         assert_eq!(0, runner.world().state.len());
         assert_eq!(Option::None, runner.location().loc_absolute);
         runner.run(Box::new(program));
@@ -21,7 +21,7 @@ mod tests {
     #[test]
     fn going_backward_works() {
         let mut runner = Runner::make_world_unknown_loc_unknown("test_box", Coord::new(2, 0, 0), AxisDirection::Xp);
-        let mut program = InitGpsProgram::new();
+        let program = InitGpsProgram::new();
         assert_eq!(0, runner.world().state.len());
         assert_eq!(Option::None, runner.location().loc_absolute);
         runner.run(Box::new(program));

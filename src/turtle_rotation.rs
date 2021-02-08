@@ -48,9 +48,9 @@ impl Rotation {
     const ALL: [Rotation;4] = [Rotation::Y0, Rotation::Y90, Rotation::Y180, Rotation::Y270];
 
     const ROT_0: (Coord, Coord, Coord) = (Vec3::<i32>(1,0,0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,1));
-    const ROT_Y90: (Coord, Coord, Coord) = (Vec3::<i32>(0,0,1), Vec3::<i32>(0,1,0), Vec3::<i32>(-1,0,0));
+    const ROT_Y90: (Coord, Coord, Coord) = (Vec3::<i32>(0,0,-1), Vec3::<i32>(0,1,0), Vec3::<i32>(1,0,0));
     const ROT_Y180: (Coord, Coord, Coord) = (Vec3::<i32>(-1, 0, 0), Vec3::<i32>(0,1,0), Vec3::<i32>(0,0,-1));
-    const ROT_Y270: (Coord, Coord, Coord) = (Vec3::<i32>(0, 0, -1), Vec3::<i32>(0,1,0), Vec3::<i32>(1,0,0));
+    const ROT_Y270: (Coord, Coord, Coord) = (Vec3::<i32>(0, 0, 1), Vec3::<i32>(0,1,0), Vec3::<i32>(-1,0,0));
 
     pub fn apply_to(&self, vec: &Coord) -> Coord {
         let (x, _y, z) = match self {
@@ -183,6 +183,21 @@ mod tests {
             let (lhs, rhs, rot) = case;            
             let result = AxisDirection::dot(lhs, rhs);
             assert_eq!(rot, &result);
+        }
+    }
+
+    #[test]
+    fn rotation_apply() {
+        let cases = [
+            (Coord::new(2, 3, 1), Rotation::Y270, Coord::new(1, 3, -2)),
+            (Coord::new(2, 3, 1), Rotation::Y90, Coord::new(-1, 3, 2)),
+            (Coord::new(2, 3, 1), Rotation::Y180, Coord::new(-2, 3, -1)),
+            (Coord::new(2, 3, 1), Rotation::Y0, Coord::new(2, 3, 1))
+        ];
+
+        for (src, rot, expected) in &cases {
+            let result = rot.apply_to(src);
+            assert_eq!(expected, &result);
         }
     }
 }
