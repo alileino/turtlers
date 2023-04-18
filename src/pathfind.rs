@@ -232,7 +232,7 @@ impl RTAStar {
                 },
                 None => {
                     1+dist_heuristic(&state.world, &node.0, &self.goal, false, 0)
-                     +blocking_path(&state.world, &node.0, &self.goal)
+                      +blocking_path(&state.world, &node.0, &self.goal)
                 }
             };
             println!("{:?} {:?} {:?}", node.1, cost, self.h.get(&node.0).is_some());

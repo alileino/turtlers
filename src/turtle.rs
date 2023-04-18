@@ -1,33 +1,43 @@
 use crate::turtle_program::*;
 use crate::turtle_action::*;
 use crate::turtle_state::*;
+use crate::run_history::*;
 use anyhow::Result;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Turtle {
     pub id: String,
     pub program: Box<dyn TurtleProgram>,
     pub last_action: Option<TurtleAction>,
-    pub state: TurtleState
+    pub state: TurtleState,
+    pub run_history: RunHistory
 }
-
-
 
 impl Turtle {
     pub fn new(name: String, ser_policy: StateSerializationPolicy) -> Self {
+
+        let run_history =  RunHistory::new(name.clone());
+        let state = TurtleState::new(name.clone(), ser_policy);
+        run_history.add_initial_state(&state);
         Turtle {
             id: name.clone(),
             program: Box::new(NoProgram{}),
             last_action: None,
-            state: TurtleState::new(name, ser_policy)
+            state,
+            run_history
         }
     }
 
     pub fn from(name: String, state: TurtleState) -> Self {
+
+        let run_history =  RunHistory::new(name.clone());
+        run_history.add_initial_state(&state);
         Turtle {
             id: name.clone(),
             program: Box::new(NoProgram{}),
             last_action: None,
-            state
+            state,
+            run_history
         }
     }
 
@@ -41,7 +51,9 @@ impl Turtle {
     }
 
     fn record(&mut self, action: TurtleAction) {
+
         self.last_action = Some(action);
+        self.run_history.add_action(&action);
     }
 
     pub fn update(&mut self, result: &TurtleActionReturn) {

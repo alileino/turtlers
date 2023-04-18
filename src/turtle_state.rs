@@ -8,6 +8,7 @@ use crate::{turtle_action::*};
 use crate::{turtle_rotation::*};
 use crate::location_state::LocationState;
 use crate::vec3::*;
+use crate::run_history::RunHistory;
 
 // Guesses the state of turtle by the recorded executed commands.
 pub type Coord = Vec3::<i32>;
@@ -26,19 +27,24 @@ pub enum StateSerializationPolicy {
 }
 
 
+
 pub struct TurtleState {
     pub location: LocationState,
     pub world: WorldState,
     pub history: ActionHistory
+    // ,pub run: RunHistory
 }
 
 
 
 impl TurtleState {
     pub fn new(id: String, serialization: StateSerializationPolicy) -> Self {
+        let location = LocationState::new();
+        let world = WorldState::new(id.clone(), serialization.clone());
+
         TurtleState{
-            location: LocationState::new(),
-            world: WorldState::new(id, serialization.clone()),
+            location,
+            world,
             history: ActionHistory::new()
         }
     }
@@ -57,6 +63,7 @@ impl TurtleState {
         self.history.update(action, result);
     }
 }
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Block {
     Unknown,

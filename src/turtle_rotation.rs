@@ -2,7 +2,7 @@ use crate::{vec3::Vec3};
 type Coord = Vec3::<i32>;
 
 
-#[derive(Debug, PartialEq, Clone, Eq, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, Hash, Copy)]
 pub enum RelativeDirection {
     Forward,
     Backward,
