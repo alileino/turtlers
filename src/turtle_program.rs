@@ -449,7 +449,7 @@ impl InitGpsProgram {
         match self.strategy {
             0 => vec!(go::forward(), gps::locate(), go::backward()),
             1 => vec!(go::backward(), gps::locate(), go::forward()),
-            2 => vec!(turn::right(), go::forward(), gps::locate(), go::backward(), turn::left(), go::backward()),
+            2 => vec!(turn::right(), go::forward(), gps::locate(), go::backward(), turn::left()),
             _ => panic!()
         }
     }
