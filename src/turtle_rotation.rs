@@ -70,7 +70,7 @@ impl Rotation {
                 return rot.clone();
             }
         }
-        panic!(format!("Could not rotate {:?} to {:?}", src, dst))
+        panic!("Could not rotate {:?} to {:?}", src, dst)
     }
 
 

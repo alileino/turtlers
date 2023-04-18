@@ -180,14 +180,14 @@ impl TurtleAction {
             RelativeDirection::Forward => format!("turtle.{}", name),
             RelativeDirection::Up => format!("turtle.{}Up", name),
             RelativeDirection::Down => format!("turtle.{}Down", name),
-            _ => panic!(format!("Unsupported {} direction {:?}", name, direction))
+            _ => panic!("Unsupported {} direction {:?}", name, direction)
             };
         TurtleApiCall::new(call.as_str())
     }
     fn slot_call(name: &str, slot: &u8) -> TurtleApiCall {
         match slot {
             1..=16 => TurtleApiCall::new_wargs(format!("turtle.{}", name).as_str(), Value::from(*slot), Value::Null),
-            _ => panic!(format!("Slot index out of range: {}, should be [1, 16]", slot))
+            _ => panic!("Slot index out of range: {}, should be [1, 16]", slot)
         }
     }
 
@@ -201,7 +201,7 @@ impl TurtleAction {
             let call = match direction {
                     RelativeDirection::Right => "turtle.turnRight",
                     RelativeDirection::Left => "turtle.turnLeft",
-                    _ => panic!(format!("Unsupported turn direction {:?}", direction))
+                    _ => panic!("Unsupported turn direction {:?}", direction)
                 };
                 TurtleApiCall::new(call)
             },
@@ -211,7 +211,7 @@ impl TurtleAction {
                     RelativeDirection::Backward => "turtle.back",
                     RelativeDirection::Up => "turtle.up",
                     RelativeDirection::Down => "turtle.down",
-                    _ => panic!(format!("Unsupported move direction {:?}", direction))
+                    _ => panic!("Unsupported move direction {:?}", direction)
                 };
                 TurtleApiCall::new(call)
             },
@@ -286,6 +286,6 @@ pub fn parse_failure_reason(reason: &str) -> FailureReason {
         "No items to drop" => FailureReason::NoItemsToDrop,
         "No space for items" => FailureReason::NoSpaceForItems,
         "Unbreakable block detected" => FailureReason::UnbreakableBlockDetected,
-        _ => panic!(format!("Unknown reason {}", reason))
+        _ => panic!("Unknown reason {}", reason)
     }
 }
