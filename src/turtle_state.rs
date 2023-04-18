@@ -8,7 +8,6 @@ use crate::{turtle_action::*};
 use crate::{turtle_rotation::*};
 use crate::location_state::LocationState;
 use crate::vec3::*;
-use crate::run_history::RunHistory;
 
 // Guesses the state of turtle by the recorded executed commands.
 pub type Coord = Vec3::<i32>;

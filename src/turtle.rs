@@ -3,7 +3,6 @@ use crate::turtle_action::*;
 use crate::turtle_state::*;
 use crate::run_history::*;
 use anyhow::Result;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Turtle {
     pub id: String,
