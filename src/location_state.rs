@@ -128,8 +128,8 @@ impl LocationState {
             let c = match (movement_dir, rot) {
                 (AxisDirection::None, rotation) => {
                     match rotation {
-                        Rotation::Y90 => '\u{21B7}',
-                        Rotation::Y270 => '\u{21B6}',
+                        Rotation::Y90 => '\u{21B6}', // ↶
+                        Rotation::Y270 => '\u{21B7}', // ↷
                         _ => panic!()
                     }
                 },
