@@ -59,4 +59,31 @@ mod tests {
         assert_eq!(7, runner.history().move_steps_len());
     }
 
+    #[test]
+    fn pathfinder_to_corner3() {
+        let coord = Coord::new(-2,0,-2);
+        let program = create_gps_and_pathfinder(&coord, &AxisDirection::Xp);
+        let mut runner = Runner::make_world_unknown_loc_unknown("test_box", Coord::new(0,0,0), AxisDirection::Zp);
+        runner.run(program);
+
+        runner.location().print_history();
+        assert_eq!(Some(coord), runner.location().loc_absolute);
+        assert_eq!(AxisDirection::Xp, runner.location().direction_absolute);
+        assert_eq!(7, runner.history().move_steps_len());
+    }
+
+    #[test]
+    fn pathfinder_with_wall() {
+        let coord = Coord::new(2,0,0);
+        let program = create_gps_and_pathfinder(&coord, &AxisDirection::Xp);
+        let mut runner = Runner::make_world_unknown_loc_unknown("box_w_wall", Coord::new(0,0,0), AxisDirection::Xp);
+        runner.run(program);
+        runner.location().print_history();
+        assert_eq!(Some(coord), runner.location().loc_absolute);
+        assert_eq!(AxisDirection::Xp, runner.location().direction_absolute);
+        assert_eq!(27, runner.history().move_steps_len());
+        // todo: this really should be much faster :D 
+    }
+
+
 }
